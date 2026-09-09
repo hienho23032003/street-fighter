@@ -33,7 +33,7 @@ class Game {
             x: 720,
             y: 350,
             facing: -1,
-            speed: 4.0,
+            speed: 4.2,
             jumpForce: -13
         });
 
@@ -55,6 +55,10 @@ class Game {
         // Prop animations
         this.propTick = 0;
         this.syncTick = 0;
+
+        // Character selection memory
+        this.p1ChosenChar = 'GIRL';
+        this.p2ChosenChar = 'PUNK';
 
         // Keys state tracker
         this.keys = {};
@@ -151,8 +155,16 @@ class Game {
         };
     }
 
-    startNewMatch(mode = 'PVP', aiDifficulty = 'NORMAL') {
+    startNewMatch(mode = 'PVP', aiDifficulty = 'NORMAL', p1Char = 'GIRL', p2Char = 'PUNK') {
         this.gameMode = mode;
+        this.p1ChosenChar = p1Char;
+        this.p2ChosenChar = p2Char;
+
+        // Configure fighters based on character selection
+        const isMirrorMatch = (p1Char === p2Char);
+        this.player1.setCharacter(p1Char, '1P');
+        this.player2.setCharacter(p2Char, isMirrorMatch ? '2P' : '1P');
+
         this.player2.isAI = (mode === 'PVE');
         if (mode === 'PVE') {
             this.aiController.setDifficulty(aiDifficulty);
@@ -163,23 +175,25 @@ class Game {
         this.currentRound = 1;
 
         document.getElementById('startScreen').classList.add('hidden');
+        document.getElementById('characterSelectModal').classList.add('hidden');
         document.getElementById('multiplayerModal').classList.add('hidden');
         document.getElementById('victoryModal').classList.add('hidden');
 
-        // Update name badge in online mode
+        // Update name badge in HUD
         const p1NameEl = document.querySelector('.fighter-name.p1');
         const p2NameEl = document.querySelector('.fighter-name.p2');
+        
         if (mode === 'ONLINE') {
             if (window.networkManager.myRole === 'p1') {
-                if (p1NameEl) p1NameEl.innerText = 'BRAWLER GIRL (YOU)';
-                if (p2NameEl) p2NameEl.innerText = 'ENEMY PUNK (P2)';
+                if (p1NameEl) p1NameEl.innerText = `${this.player1.name} (YOU)`;
+                if (p2NameEl) p2NameEl.innerText = `${this.player2.name} (P2)`;
             } else {
-                if (p1NameEl) p1NameEl.innerText = 'BRAWLER GIRL (P1)';
-                if (p2NameEl) p2NameEl.innerText = 'ENEMY PUNK (YOU)';
+                if (p1NameEl) p1NameEl.innerText = `${this.player1.name} (P1)`;
+                if (p2NameEl) p2NameEl.innerText = `${this.player2.name} (YOU)`;
             }
         } else {
-            if (p1NameEl) p1NameEl.innerText = 'BRAWLER GIRL';
-            if (p2NameEl) p2NameEl.innerText = mode === 'PVE' ? `ENEMY PUNK (${aiDifficulty})` : 'ENEMY PUNK';
+            if (p1NameEl) p1NameEl.innerText = `${this.player1.name}${isMirrorMatch ? ' (1P)' : ''}`;
+            if (p2NameEl) p2NameEl.innerText = `${this.player2.name}${isMirrorMatch ? ' (2P)' : ''}${mode === 'PVE' ? ` [${aiDifficulty}]` : ''}`;
         }
 
         if (window.soundManager) {
@@ -547,7 +561,7 @@ class Game {
     }
 }
 
-// Global initialization & Network Event Bindings
+// Global initialization & UI Events
 window.addEventListener('DOMContentLoaded', async () => {
     const game = new Game();
 
@@ -555,17 +569,13 @@ window.addEventListener('DOMContentLoaded', async () => {
     const loadingScreen = document.getElementById('loadingScreen');
     const startScreen = document.getElementById('startScreen');
     const multiplayerModal = document.getElementById('multiplayerModal');
+    const charSelectModal = document.getElementById('characterSelectModal');
 
-    // Fetch server IP info for LAN sharing
-    fetch('/api/info')
-        .then(r => r.json())
-        .then(data => {
-            const lanIpEl = document.getElementById('lanIpDisplay');
-            if (lanIpEl && data.url) {
-                lanIpEl.innerText = data.url;
-            }
-        })
-        .catch(() => {});
+    let pendingMode = 'PVP';
+    let pendingDiff = 'NORMAL';
+    let selectedCharP1 = 'GIRL';
+    let selectedCharP2 = 'PUNK';
+    let selectStep = 1; // 1: P1 selecting, 2: P2 selecting
 
     await window.spriteManager.loadAllAssets((progress) => {
         if (progressBar) progressBar.style.width = `${Math.round(progress * 100)}%`;
@@ -578,7 +588,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Start game loop
     game.loop();
 
-    // Setup Network Manager Callbacks
+    // Setup Network Manager Callbacks for WebRTC
     window.networkManager.onRoomCreatedCallback = (data) => {
         document.getElementById('hostWaitingView').classList.remove('hidden');
         document.getElementById('joinInputView').classList.add('hidden');
@@ -588,14 +598,14 @@ window.addEventListener('DOMContentLoaded', async () => {
     window.networkManager.onRoomJoinedCallback = (data) => {
         document.getElementById('joinInputView').innerHTML = `
             <p style="font-size: 11px; color: var(--arcade-cyan); margin: 15px 0;">
-                Đã vào phòng <b>${data.roomId}</b>! Đang chờ bắt đầu...
+                Đã vào phòng <b>${data.roomId}</b>! Đang kết nối trận đấu...
             </p>
         `;
     };
 
     window.networkManager.onMatchStartCallback = (data) => {
         multiplayerModal.classList.add('hidden');
-        game.startNewMatch('ONLINE');
+        game.startNewMatch('ONLINE', 'NORMAL', selectedCharP1, selectedCharP2);
     };
 
     window.networkManager.onErrorCallback = (msg) => {
@@ -611,9 +621,81 @@ window.addEventListener('DOMContentLoaded', async () => {
         window.networkManager.leaveRoom();
     };
 
+    // Helper: Show Character Select Modal
+    function openCharSelect(mode, diff = 'NORMAL') {
+        pendingMode = mode;
+        pendingDiff = diff;
+        selectStep = 1;
+        selectedCharP1 = 'GIRL';
+        selectedCharP2 = (mode === 'PVE') ? (Math.random() < 0.5 ? 'PUNK' : 'GIRL') : 'PUNK';
+
+        updateCharCardSelection(selectedCharP1);
+        const subtitle = document.getElementById('charSelectSubtitle');
+        if (subtitle) {
+            subtitle.innerText = mode === 'PVP' ? 'PLAYER 1: CHỌN VÕ SĨ' : 'BẠN HÃY CHỌN VÕ SĨ';
+        }
+
+        startScreen.classList.add('hidden');
+        charSelectModal.classList.remove('hidden');
+    }
+
+    function updateCharCardSelection(charType) {
+        const cardGirl = document.getElementById('cardGirl');
+        const cardPunk = document.getElementById('cardPunk');
+        if (cardGirl) cardGirl.classList.toggle('selected', charType === 'GIRL');
+        if (cardPunk) cardPunk.classList.toggle('selected', charType === 'PUNK');
+    }
+
+    // Card Selection Click Events
+    document.getElementById('cardGirl').addEventListener('click', () => {
+        if (selectStep === 1) selectedCharP1 = 'GIRL';
+        else selectedCharP2 = 'GIRL';
+        updateCharCardSelection('GIRL');
+    });
+
+    document.getElementById('cardPunk').addEventListener('click', () => {
+        if (selectStep === 1) selectedCharP1 = 'PUNK';
+        else selectedCharP2 = 'PUNK';
+        updateCharCardSelection('PUNK');
+    });
+
+    // Confirm Character Selection
+    document.getElementById('btnConfirmChar').addEventListener('click', () => {
+        if (pendingMode === 'PVP' && selectStep === 1) {
+            // Move to Player 2 Character Selection in local 2P mode
+            selectStep = 2;
+            selectedCharP2 = 'PUNK';
+            updateCharCardSelection(selectedCharP2);
+            const subtitle = document.getElementById('charSelectSubtitle');
+            if (subtitle) subtitle.innerText = 'PLAYER 2: CHỌN VÕ SĨ';
+            return;
+        }
+
+        // Start Match with chosen characters
+        charSelectModal.classList.add('hidden');
+        game.startNewMatch(pendingMode, pendingDiff, selectedCharP1, selectedCharP2);
+    });
+
+    document.getElementById('btnBackFromCharSelect').addEventListener('click', () => {
+        charSelectModal.classList.add('hidden');
+        startScreen.classList.remove('hidden');
+    });
+
     // Mode Selection Buttons
     document.getElementById('btnPvp').addEventListener('click', () => {
-        game.startNewMatch('PVP');
+        openCharSelect('PVP');
+    });
+
+    document.getElementById('btnPveEasy').addEventListener('click', () => {
+        openCharSelect('PVE', 'EASY');
+    });
+
+    document.getElementById('btnPveNormal').addEventListener('click', () => {
+        openCharSelect('PVE', 'NORMAL');
+    });
+
+    document.getElementById('btnPveHard').addEventListener('click', () => {
+        openCharSelect('PVE', 'HARD');
     });
 
     document.getElementById('btnOnline').addEventListener('click', () => {
@@ -643,23 +725,11 @@ window.addEventListener('DOMContentLoaded', async () => {
         startScreen.classList.remove('hidden');
     });
 
-    document.getElementById('btnPveEasy').addEventListener('click', () => {
-        game.startNewMatch('PVE', 'EASY');
-    });
-
-    document.getElementById('btnPveNormal').addEventListener('click', () => {
-        game.startNewMatch('PVE', 'NORMAL');
-    });
-
-    document.getElementById('btnPveHard').addEventListener('click', () => {
-        game.startNewMatch('PVE', 'HARD');
-    });
-
     document.getElementById('btnRematch').addEventListener('click', () => {
         if (game.gameMode === 'ONLINE') {
-            game.startNewMatch('ONLINE');
+            game.startNewMatch('ONLINE', 'NORMAL', game.p1ChosenChar, game.p2ChosenChar);
         } else {
-            game.startNewMatch(game.gameMode, game.aiController.difficulty);
+            game.startNewMatch(game.gameMode, game.aiController.difficulty, game.p1ChosenChar, game.p2ChosenChar);
         }
     });
 

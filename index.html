@@ -109,6 +109,49 @@
                 </div>
             </div>
 
+            <!-- Modal: Character Selection -->
+            <div id="characterSelectModal" class="game-modal hidden">
+                <div class="modal-content" style="max-width: 650px;">
+                    <h2 class="modal-title">CHỌN VÕ SĨ</h2>
+                    <p id="charSelectSubtitle" style="font-size: 11px; color: var(--arcade-cyan); margin-bottom: 12px; font-weight: 700;">PLAYER 1 CHỌN NHÂN VẬT</p>
+                    
+                    <div class="character-cards-grid">
+                        <div id="cardGirl" class="char-card selected" data-char="GIRL">
+                            <div class="char-card-header" style="color: var(--arcade-cyan);">BRAWLER GIRL</div>
+                            <div class="char-avatar-box">
+                                <img src="streets_of_fight_files/Streets of Fight files/Sprites/Brawler-Girl/Idle/idle1.png" class="pixel-avatar" alt="Brawler Girl">
+                            </div>
+                            <div class="char-stats">
+                                <div>Tốc độ: <span style="color:#00f2fe;">★★★★★</span></div>
+                                <div>Sức mạnh: <span style="color:#ffcc00;">★★★☆☆</span></div>
+                                <div style="font-size: 9px; color: #a0aabf; margin-top: 4px;">Đòn đá xoay & Dive Kick</div>
+                            </div>
+                        </div>
+
+                        <div id="cardPunk" class="char-card" data-char="PUNK">
+                            <div class="char-card-header" style="color: var(--arcade-red);">ENEMY PUNK</div>
+                            <div class="char-avatar-box">
+                                <img src="streets_of_fight_files/Streets of Fight files/Sprites/Enemy-Punk/Idle/idle1.png" class="pixel-avatar" alt="Enemy Punk">
+                            </div>
+                            <div class="char-stats">
+                                <div>Tốc độ: <span style="color:#00f2fe;">★★★★☆</span></div>
+                                <div>Sức mạnh: <span style="color:#ff2a4b;">★★★★★</span></div>
+                                <div style="font-size: 9px; color: #a0aabf; margin-top: 4px;">Đấm móc, Đá tống & Dash Tackle</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button id="btnConfirmChar" class="arcade-btn primary" style="flex: 2;">
+                            ⚔️ XÁC NHẬN & VÀO TRẬN
+                        </button>
+                        <button id="btnBackFromCharSelect" class="arcade-btn" style="flex: 1; font-size: 11px;">
+                            ← QUAY LẠI
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Modal: Online Multiplayer Lobby -->
             <div id="multiplayerModal" class="game-modal hidden">
                 <div class="modal-content" style="max-width: 600px;">

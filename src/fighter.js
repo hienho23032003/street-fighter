@@ -19,6 +19,7 @@ class Fighter {
 
         // Scale & Dimensions
         this.scale = config.scale || 3.0;
+        this.palette = config.palette || '1P'; // '1P' (Original) or '2P' (Alt Outfit)
         this.width = 40 * this.scale;
         this.height = 55 * this.scale;
 
@@ -48,6 +49,15 @@ class Fighter {
 
         // Custom properties per character
         this.attackCooldown = 0;
+    }
+
+    setCharacter(charType, palette = '1P') {
+        this.charType = charType;
+        this.name = charType === 'GIRL' ? 'BRAWLER GIRL' : 'ENEMY PUNK';
+        this.palette = palette;
+        this.speed = charType === 'GIRL' ? 4.8 : 4.2;
+        this.jumpForce = charType === 'GIRL' ? -14 : -13;
+        this.setAnimation('idle', 9, true);
     }
 
     resetForNewRound(startX, facing) {
@@ -485,6 +495,11 @@ class Fighter {
             // Brawler Girl faces right by default; Enemy Punk faces left by default in raw assets
             const spriteDir = this.charType === 'GIRL' ? this.facing : -this.facing;
             ctx.scale(spriteDir * this.scale, this.scale);
+
+            // Palette Swap (2P Alt Outfit for mirror match)
+            if (this.palette === '2P') {
+                ctx.filter = 'hue-rotate(180deg) saturate(1.3)';
+            }
 
             // Center sprite horizontally and bottom-align to ground
             const drawW = frameImg.width;

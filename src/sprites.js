@@ -139,9 +139,11 @@ class SpriteManager {
                 'idle': 4,
                 'walk': 4,
                 'punch': 3,
+                'kick': 4,
                 'heavy_punch': 3,
                 'dash_tackle': 3,
-                'jump': 2, // Map from walk
+                'jump': 2,
+                'jump_kick': 2,
                 'hurt': 4,
                 'block': 1
             }
@@ -153,6 +155,8 @@ class SpriteManager {
             let key = `${prefix}${actionName}_${i}`;
             // Special mappings for punk actions that reuse or adapt frames
             if (charType === 'PUNK') {
+                if (actionName === 'kick') key = `punk_walk_${i}`;
+                if (actionName === 'jump_kick') key = `punk_walk_${i === 1 ? 4 : 3}`;
                 if (actionName === 'heavy_punch') key = `punk_punch_${i}`;
                 if (actionName === 'dash_tackle') key = `punk_punch_${i}`;
                 if (actionName === 'jump') key = `punk_walk_${i === 1 ? 2 : 4}`;
