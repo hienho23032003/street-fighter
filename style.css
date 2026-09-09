@@ -1,0 +1,536 @@
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,400;0,600;0,700;1,700&family=Orbitron:wght@600;800;900&family=Press+Start+2P&display=swap');
+
+:root {
+    --bg-dark: #080811;
+    --arcade-gold: #ffcc00;
+    --arcade-red: #ff2a4b;
+    --arcade-cyan: #00f2fe;
+    --arcade-purple: #9d4edd;
+    --hp-green: #00ff88;
+    --hp-yellow: #ffb703;
+    --hp-red: #e63946;
+    --p1-color: #00f2fe;
+    --p2-color: #ff3366;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+}
+
+body {
+    background-color: var(--bg-dark);
+    background-image: 
+        radial-gradient(circle at 50% 20%, rgba(20, 24, 50, 0.8) 0%, rgba(8, 8, 17, 1) 100%),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.02) 0px, rgba(255, 255, 255, 0.02) 1px, transparent 1px, transparent 2px);
+    color: #fff;
+    font-family: 'Chakra Petch', 'Orbitron', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow-x: hidden;
+    padding: 10px;
+    letter-spacing: 0.5px;
+}
+
+/* Arcade Cabinet Container */
+.cabinet-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 980px;
+    background: #12131f;
+    border: 4px solid #2b2d42;
+    border-radius: 12px;
+    box-shadow: 0 0 40px rgba(0, 242, 254, 0.15), 0 0 80px rgba(255, 42, 75, 0.1), inset 0 0 20px rgba(0, 0, 0, 0.8);
+    padding: 12px;
+}
+
+/* Header Arcade Logo */
+.arcade-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px 10px;
+    border-bottom: 2px solid #23273a;
+    margin-bottom: 8px;
+}
+
+.game-title {
+    font-family: 'Orbitron', 'Chakra Petch', sans-serif;
+    font-weight: 900;
+    font-size: 18px;
+    background: linear-gradient(180deg, #fff 0%, #ffe600 40%, #ff2a4b 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 2px 8px rgba(255, 42, 75, 0.6));
+    letter-spacing: 1.5px;
+}
+
+.top-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.arcade-btn-mini {
+    background: #1c2035;
+    border: 1px solid #3d4361;
+    color: #a0aabf;
+    font-family: 'Chakra Petch', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+}
+
+.arcade-btn-mini:hover, .arcade-btn-mini.active {
+    background: #2b3353;
+    color: #fff;
+    border-color: var(--arcade-cyan);
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+}
+
+/* Canvas & Screen Container */
+.screen-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border: 2px solid #1a1c29;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+#gameCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+/* CRT Scanlines Overlay */
+.crt-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+    background-size: 100% 3px, 6px 100%;
+    box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.7);
+    z-index: 20;
+}
+
+/* HUD Overlay on Canvas */
+.hud-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 14px 18px;
+    z-index: 10;
+}
+
+/* Top Health & Timer Bar */
+.hud-top {
+    display: grid;
+    grid-template-columns: 1fr 70px 1fr;
+    gap: 12px;
+    align-items: center;
+}
+
+.fighter-hud {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.fighter-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: 'Orbitron', 'Chakra Petch', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    text-shadow: 0 2px 4px #000;
+    letter-spacing: 1px;
+}
+
+.fighter-name.p1 {
+    color: var(--p1-color);
+    text-shadow: 0 0 8px rgba(0, 242, 254, 0.6);
+}
+
+.fighter-name.p2 {
+    color: var(--p2-color);
+    text-shadow: 0 0 8px rgba(255, 51, 102, 0.6);
+}
+
+.round-wins {
+    display: flex;
+    gap: 6px;
+}
+
+.win-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #2a2e45;
+    border: 1px solid #5a6080;
+}
+
+.win-dot.active {
+    background: #ffcc00;
+    border-color: #fff;
+    box-shadow: 0 0 8px #ffcc00;
+}
+
+/* Health Bar Containers */
+.bar-container {
+    position: relative;
+    height: 18px;
+    background: #111424;
+    border: 2px solid #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.9);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.p1-side .bar-container {
+    transform: skewX(-12deg);
+}
+
+.p2-side .bar-container {
+    transform: skewX(12deg);
+}
+
+.hp-buffer {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: #ffb703;
+    transition: width 0.4s ease-out;
+}
+
+.hp-bar {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #ff0844 0%, #ffb199 100%);
+    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.4);
+    transition: width 0.1s linear;
+}
+
+.p1-side .hp-buffer, .p1-side .hp-bar {
+    left: 0;
+}
+
+.p2-side .hp-buffer, .p2-side .hp-bar {
+    right: 0;
+}
+
+/* Super Energy Gauge */
+.energy-container {
+    position: relative;
+    height: 8px;
+    background: #111424;
+    border: 1px solid #4a5070;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 2px;
+}
+
+.energy-bar {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #00f2fe 0%, #4facfe 100%);
+    box-shadow: 0 0 8px #00f2fe;
+    width: 0%;
+    transition: width 0.2s ease;
+}
+
+.p2-side .energy-bar {
+    right: 0;
+    background: linear-gradient(90deg, #ff0844 0%, #ff4b2b 100%);
+    box-shadow: 0 0 8px #ff0844;
+}
+
+.energy-bar.full {
+    animation: superEnergyGlow 0.3s infinite alternate;
+}
+
+@keyframes superEnergyGlow {
+    0% {
+        box-shadow: 0 0 10px #00f2fe;
+        filter: brightness(1.2);
+    }
+    100% {
+        box-shadow: 0 0 22px #fff, 0 0 35px #00f2fe;
+        filter: brightness(1.8);
+    }
+}
+
+/* Center Timer */
+.timer-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #000;
+    border: 2px solid var(--arcade-gold);
+    border-radius: 6px;
+    padding: 4px 0;
+    box-shadow: 0 0 15px rgba(255, 204, 0, 0.4);
+}
+
+.timer-digits {
+    font-size: 26px;
+    font-weight: 900;
+    color: var(--arcade-gold);
+    text-shadow: 0 0 10px var(--arcade-gold);
+    font-family: 'Orbitron', monospace;
+    letter-spacing: 1px;
+}
+
+/* Combo Banner */
+.combo-display {
+    font-family: 'Orbitron', 'Chakra Petch', sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    color: #ffcc00;
+    text-shadow: 0 0 10px #ff2a4b, 2px 2px 0 #000;
+    margin-top: 10px;
+    animation: comboPulse 0.3s ease infinite alternate;
+}
+
+@keyframes comboPulse {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.1); }
+}
+
+/* Overlays / Modals */
+.game-modal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(8, 9, 18, 0.88);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 30;
+    padding: 20px;
+    text-align: center;
+}
+
+.modal-content {
+    background: #141729;
+    border: 3px solid #2f3555;
+    border-radius: 10px;
+    padding: 24px 30px;
+    max-width: 580px;
+    width: 100%;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 242, 254, 0.2);
+}
+
+.modal-title {
+    font-family: 'Orbitron', 'Chakra Petch', sans-serif;
+    font-weight: 900;
+    font-size: 20px;
+    color: var(--arcade-gold);
+    text-shadow: 0 0 12px rgba(255, 204, 0, 0.6);
+    margin-bottom: 20px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.mode-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.arcade-btn {
+    background: linear-gradient(180deg, #252b48 0%, #171b30 100%);
+    border: 2px solid #4a5482;
+    color: #fff;
+    font-family: 'Chakra Petch', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 13px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    letter-spacing: 0.5px;
+}
+
+.arcade-btn:hover {
+    background: linear-gradient(180deg, #37416e 0%, #222949 100%);
+    border-color: var(--arcade-cyan);
+    box-shadow: 0 0 16px rgba(0, 242, 254, 0.5);
+    transform: translateY(-2px);
+}
+
+.arcade-btn.primary {
+    border-color: var(--arcade-gold);
+    box-shadow: 0 0 14px rgba(255, 204, 0, 0.3);
+}
+
+.arcade-btn.primary:hover {
+    box-shadow: 0 0 22px rgba(255, 204, 0, 0.6);
+}
+
+/* Control Help Tables */
+.controls-table-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    text-align: left;
+    margin: 16px 0;
+    font-size: 12px;
+    line-height: 1.8;
+}
+
+.ctrl-box {
+    background: #0d1020;
+    border: 1px solid #282f4d;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.ctrl-box h4 {
+    font-family: 'Orbitron', 'Chakra Petch', sans-serif;
+    color: var(--arcade-cyan);
+    margin-bottom: 8px;
+    font-size: 12px;
+    border-bottom: 1px solid #282f4d;
+    padding-bottom: 4px;
+    letter-spacing: 0.5px;
+}
+
+.ctrl-box.p2 h4 {
+    color: var(--arcade-red);
+}
+
+.key-badge {
+    background: #232a48;
+    color: #ffcc00;
+    font-family: 'Orbitron', 'Chakra Petch', monospace;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 3px;
+    border: 1px solid #4a5482;
+    display: inline-block;
+    font-size: 11px;
+}
+
+/* Bottom Controls Helper Bar */
+.bottom-controls-bar {
+    display: flex;
+    justify-content: space-between;
+    background: #0e101c;
+    border: 1px solid #23273a;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-top: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #a0aabf;
+}
+
+.ctrl-hint {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Multiplayer Lobby Custom Styles */
+.highlight-glow {
+    border-color: var(--arcade-cyan) !important;
+    background: linear-gradient(180deg, #164e63 0%, #083344 100%) !important;
+    box-shadow: 0 0 20px rgba(0, 242, 254, 0.4) !important;
+    animation: glowPulse 1.5s infinite alternate;
+}
+
+@keyframes glowPulse {
+    0% { transform: scale(1); box-shadow: 0 0 15px rgba(0, 242, 254, 0.4); }
+    100% { transform: scale(1.02); box-shadow: 0 0 25px rgba(0, 242, 254, 0.8); }
+}
+
+.lan-info-box {
+    background: #080a14;
+    border: 1px dashed #3a4468;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 15px;
+}
+
+.lan-url {
+    color: var(--arcade-cyan);
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    user-select: all;
+}
+
+.arcade-input {
+    background: #0b0e1b;
+    border: 2px solid #3d4770;
+    color: var(--arcade-gold);
+    font-family: 'Orbitron', 'Chakra Petch', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 12px 14px;
+    border-radius: 6px;
+    outline: none;
+    text-align: center;
+    width: 240px;
+    transition: all 0.2s ease;
+    letter-spacing: 1.5px;
+}
+
+.arcade-input:focus {
+    border-color: var(--arcade-cyan);
+    box-shadow: 0 0 14px rgba(0, 242, 254, 0.5);
+}
+
+.room-code-badge {
+    display: inline-block;
+    background: #000;
+    border: 3px solid var(--arcade-gold);
+    border-radius: 8px;
+    padding: 12px 28px;
+    font-family: 'Orbitron', monospace;
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--arcade-gold);
+    text-shadow: 0 0 15px var(--arcade-gold);
+    letter-spacing: 6px;
+    box-shadow: 0 0 25px rgba(255, 204, 0, 0.4);
+}

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Street Fighter Retro 2P - Arcade Showdown</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="cabinet-wrapper">
+        <!-- Arcade Header Bar -->
+        <header class="arcade-header">
+            <h1 class="game-title">⚡ STREET FIGHTER RETRO ⚡</h1>
+            <div class="top-actions">
+                <button id="btnControls" class="arcade-btn-mini" title="Xem hướng dẫn phím">🕹️ HƯỚNG DẪN</button>
+                <button id="btnCrt" class="arcade-btn-mini active" title="Bật/tắt hiệu ứng quét CRT">📺 CRT SCAN</button>
+                <button id="btnMute" class="arcade-btn-mini" title="Bật/tắt âm thanh">🔊 SOUND</button>
+            </div>
+        </header>
+
+        <!-- Main Screen Canvas & Overlays -->
+        <main class="screen-container">
+            <!-- Canvas -->
+            <canvas id="gameCanvas"></canvas>
+
+            <!-- CRT Scanlines Filter Overlay -->
+            <div id="crtOverlay" class="crt-overlay"></div>
+
+            <!-- In-game HUD (Health, Timer, Energy, Rounds, Combos) -->
+            <div id="hudLayer" class="hud-layer">
+                <div class="hud-top">
+                    <!-- Player 1 (Left) -->
+                    <div class="fighter-hud p1-side">
+                        <div class="fighter-meta">
+                            <span class="fighter-name p1">BRAWLER GIRL</span>
+                            <div class="round-wins">
+                                <span id="p1R1" class="win-dot"></span>
+                                <span id="p1R2" class="win-dot"></span>
+                            </div>
+                        </div>
+                        <div class="bar-container">
+                            <div id="p1HpBuffer" class="hp-buffer" style="width: 100%;"></div>
+                            <div id="p1HpBar" class="hp-bar" style="width: 100%;"></div>
+                        </div>
+                        <div class="energy-container">
+                            <div id="p1EnergyBar" class="energy-bar"></div>
+                        </div>
+                        <div id="p1Combo" class="combo-display hidden">2 HITS!</div>
+                    </div>
+
+                    <!-- Center Timer -->
+                    <div class="timer-container">
+                        <span id="roundTimer" class="timer-digits">99</span>
+                    </div>
+
+                    <!-- Player 2 (Right) -->
+                    <div class="fighter-hud p2-side">
+                        <div class="fighter-meta">
+                            <div class="round-wins">
+                                <span id="p2R1" class="win-dot"></span>
+                                <span id="p2R2" class="win-dot"></span>
+                            </div>
+                            <span class="fighter-name p2">ENEMY PUNK</span>
+                        </div>
+                        <div class="bar-container">
+                            <div id="p2HpBuffer" class="hp-buffer" style="width: 100%;"></div>
+                            <div id="p2HpBar" class="hp-bar" style="width: 100%;"></div>
+                        </div>
+                        <div class="energy-container">
+                            <div id="p2EnergyBar" class="energy-bar"></div>
+                        </div>
+                        <div id="p2Combo" class="combo-display hidden" style="text-align: right;">2 HITS!</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal: Loading Screen -->
+            <div id="loadingScreen" class="game-modal">
+                <div class="modal-content">
+                    <h2 class="modal-title">LOADING ASSETS...</h2>
+                    <div class="bar-container" style="height: 14px; margin-top: 15px;">
+                        <div id="loadingProgress" class="hp-bar" style="width: 0%; background: var(--arcade-cyan);"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal: Start Menu -->
+            <div id="startScreen" class="game-modal hidden">
+                <div class="modal-content">
+                    <h2 class="modal-title">CHỌN CHẾ ĐỘ CHƠI</h2>
+                    <div class="mode-grid">
+                        <button id="btnOnline" class="arcade-btn primary highlight-glow">
+                            ĐẤU ONLINE 2 MÁY (ONLINE ROOM)
+                        </button>
+                        <button id="btnPvp" class="arcade-btn">
+                            2 NGƯỜI 1 BÀN PHÍM (PVP LOCAL)
+                        </button>
+                        <button id="btnPveNormal" class="arcade-btn">
+                             1 NGƯỜI VS MÁY (NORMAL AI)
+                        </button>
+                        <button id="btnPveHard" class="arcade-btn">
+                            1 NGƯỜI VS MÁY (HARD AI)
+                        </button>
+                        <button id="btnPveEasy" class="arcade-btn" style="font-size: 9px; opacity: 0.85;">
+                           TẬP LUYỆN (EASY AI)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal: Online Multiplayer Lobby -->
+            <div id="multiplayerModal" class="game-modal hidden">
+                <div class="modal-content" style="max-width: 600px;">
+                    <h2 class="modal-title">PHÒNG ĐẤU ONLINE</h2>
+                    
+                    <div class="lan-info-box">
+                        <div style="color: #a0aabf; font-size: 8px; margin-bottom: 4px;">📡 ĐƯỜNG LINK CHO MÁY KHÁC TRONG CÙNG WI-FI:</div>
+                        <code id="lanIpDisplay" class="lan-url">http://localhost:3000</code>
+                    </div>
+
+                    <!-- Join/Host Selection Views -->
+                    <div id="joinInputView">
+                        <div style="display: flex; gap: 10px; margin: 15px 0;">
+                            <button id="btnHostRoom" class="arcade-btn primary" style="flex: 1;">
+                                TẠO PHÒNG MỚI
+                            </button>
+                        </div>
+                        
+                        <div style="margin: 15px 0 10px; font-size: 9px; color: #a0aabf;">— HOẶC NHẬP MÃ PHÒNG ĐÃ CÓ —</div>
+
+                        <div style="display: flex; gap: 8px; justify-content: center; align-items: center; margin-bottom: 15px;">
+                            <input type="text" id="inputRoomCode" placeholder="MÃ PHÒNG (VD: 8899)" maxlength="6" class="arcade-input">
+                            <button id="btnJoinRoom" class="arcade-btn primary" style="padding: 12px 16px;">VÀO PHÒNG</button>
+                        </div>
+                    </div>
+
+                    <!-- Host Waiting View -->
+                    <div id="hostWaitingView" class="hidden" style="margin: 20px 0;">
+                        <p style="font-size: 9px; color: #a0aabf; margin-bottom: 8px;">MÃ PHÒNG CỦA BẠN LÀ:</p>
+                        <div class="room-code-badge">
+                            <span id="roomCodeDisplay">....</span>
+                        </div>
+                        <p style="font-size: 9px; color: var(--arcade-gold); margin-top: 15px; animation: comboPulse 0.8s infinite alternate;">
+                             Đang chờ đối thủ nhập mã để bắt đầu...
+                        </p>
+                    </div>
+
+                    <button id="btnBackFromOnline" class="arcade-btn" style="width: 100%; margin-top: 10px; font-size: 9px;">
+                        ← QUAY LẠI MENU
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal: Pause Overlay -->
+            <div id="pauseOverlay" class="game-modal hidden">
+                <div class="modal-content">
+                    <h2 class="modal-title">TẠM DỪNG</h2>
+                    <p style="font-size: 10px; color: #a0aabf; margin-bottom: 15px;">Nhấn phím <span class="key-badge">P</span> để tiếp tục trận đấu</p>
+                </div>
+            </div>
+
+            <!-- Modal: Victory / Match Over -->
+            <div id="victoryModal" class="game-modal hidden">
+                <div class="modal-content">
+                    <h2 class="modal-title">KẾT THÚC TRẬN ĐẤU </h2>
+                    <p style="font-size: 14px; color: var(--arcade-gold); margin: 15px 0;">
+                        <span id="victorName">BRAWLER GIRL</span> THẮNG CHUNG CUỘC!
+                    </p>
+                    <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                        <button id="btnRematch" class="arcade-btn primary">TÁI ĐẤU</button>
+                        <button id="btnMenu" class="arcade-btn"> MENU CHÍNH</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal: Controls Guide -->
+            <div id="controlsModal" class="game-modal hidden">
+                <div class="modal-content" style="max-width: 680px;">
+                    <h2 class="modal-title">🕹️ BẢNG ĐIỀU KHIỂN & COMBO</h2>
+                    <div class="controls-table-grid">
+                        <div class="ctrl-box p1">
+                            <h4>P1: BRAWLER GIRL (HOẶC ĐẤU ONLINE)</h4>
+                            <div>• Di chuyển: <span class="key-badge">A</span> / <span class="key-badge">D</span> | Nhảy: <span class="key-badge">W</span></div>
+                            <div>• Đỡ đòn (Block): <span class="key-badge">S</span> (Giảm 85% DMG)</div>
+                            <div>• Đấm nhanh (Jab): <span class="key-badge">J</span></div>
+                            <div>• Đá uy lực (Kick): <span class="key-badge">K</span></div>
+                            <div>• Tuyệt chiêu (Dive Kick): <span class="key-badge">L</span></div>
+                        </div>
+
+                        <div class="ctrl-box p2">
+                            <h4>P2: ENEMY PUNK (KHI 2 NGƯỜI / 1 BÀN PHÍM)</h4>
+                            <div>• Di chuyển: <span class="key-badge">←</span> / <span class="key-badge">→</span> | Nhảy: <span class="key-badge">↑</span></div>
+                            <div>• Đỡ đòn (Block): <span class="key-badge">↓</span> (Giảm 85% DMG)</div>
+                            <div>• Đấm nhanh: <span class="key-badge">U</span> / <span class="key-badge">Num 1</span></div>
+                            <div>• Đấm móc nặng: <span class="key-badge">I</span> / <span class="key-badge">Num 2</span></div>
+                            <div>• Tuyệt chiêu (Dash Tackle): <span class="key-badge">O</span> / <span class="key-badge">Num 3</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Combo Lists -->
+                    <div class="ctrl-box" style="margin-top: 10px; background: #0b0e1e; border-color: var(--arcade-gold);">
+                        <h4 style="color: var(--arcade-gold);">⚡ CÁC CHUỖI ĐÒN COMBO:</h4>
+                        <div style="font-size: 11px; line-height: 1.8;">
+                            <div>🔥 <b>Combo 3 HITS Liên Hoàn:</b> Bấm <span class="key-badge">J</span> ➜ <span class="key-badge">K</span> ➜ <span class="key-badge">L</span> (Hủy động tác chém gót)</div>
+                            <div>🌪️ <b>Combo Trên Không (Air Dive):</b> Bấm <span class="key-badge">W</span> (Nhảy) ➜ bấm <span class="key-badge">L</span> (Bổ gót chéo từ trên xuống)</div>
+                            <div>💥 <b>Super Special Attack (Nộ 100%):</b> Khi thanh năng lượng đầy 100% ➜ bấm <span class="key-badge">L</span> để tung đòn nộ siêu thanh cực mạnh!</div>
+                        </div>
+                    </div>
+
+                    <button id="btnCloseControls" class="arcade-btn primary" style="width: 100%; margin-top: 15px;">ĐÃ HIỂU & ĐÓNG</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom Controls Reminders -->
+        <footer class="bottom-controls-bar">
+            <div class="ctrl-hint">
+                <span style="color: var(--p1-color);">P1 / ONLINE:</span> W/A/S/D + J/K/L
+            </div>
+            <div class="ctrl-hint">
+                <span>PAUSE:</span> <span class="key-badge">P</span>
+            </div>
+            <div class="ctrl-hint">
+                <span style="color: var(--p2-color);">P2 LOCAL:</span> Mũi tên + U/I/O (hoặc Num 1/2/3)
+            </div>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="src/audio.js"></script>
+    <script src="src/sprites.js"></script>
+    <script src="src/fighter.js"></script>
+    <script src="src/ai.js"></script>
+    <script src="src/network.js"></script>
+    <script src="src/game.js"></script>
+</body>
+</html>
