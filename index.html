@@ -115,7 +115,7 @@
                     <h2 class="modal-title">PHÒNG ĐẤU ONLINE</h2>
                     
                     <div class="lan-info-box">
-                        <div style="color: #a0aabf; font-size: 8px; margin-bottom: 4px;">📡 ĐƯỜNG LINK CHO MÁY KHÁC TRONG CÙNG WI-FI:</div>
+                        <div style="color: #a0aabf; font-size: 8px; margin-bottom: 4px;">🌐 GỬI LINK NÀY CHO BẠN BÈ ĐỂ CÙNG ĐẤU:</div>
                         <code id="lanIpDisplay" class="lan-url">https://hieho-street-fighter.netlify.app/</code>
                     </div>
 
@@ -142,7 +142,7 @@
                             <span id="roomCodeDisplay">....</span>
                         </div>
                         <p style="font-size: 9px; color: var(--arcade-gold); margin-top: 15px; animation: comboPulse 0.8s infinite alternate;">
-                             Đang chờ đối thủ nhập mã để bắt đầu...
+                            ⏳ Đang chờ đối thủ nhập mã để bắt đầu...
                         </p>
                     </div>
 
@@ -227,7 +227,8 @@
         </footer>
     </div>
 
-    <!-- Scripts -->
+    <!-- Scripts (PeerJS WebRTC CDN for Netlify Serverless P2P) -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="src/audio.js"></script>
     <script src="src/sprites.js"></script>
     <script src="src/fighter.js"></script>

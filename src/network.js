@@ -1,11 +1,12 @@
-// Client Network Controller (WebSocket Multiplayer Engine)
+// WebRTC P2P Multiplayer Controller (Zero Backend required, 100% Netlify Compatible)
 class NetworkManager {
     constructor() {
-        this.ws = null;
+        this.peer = null;
+        this.conn = null;
         this.isConnected = false;
-        this.roomId = null;
-        this.myRole = null; // 'p1' (Girl) or 'p2' (Punk)
         this.isOnline = false;
+        this.roomId = null;
+        this.myRole = null; // 'p1' (Host - Girl) or 'p2' (Joiner - Punk)
         this.opponentControls = {
             left: false,
             right: false,
@@ -23,134 +24,195 @@ class NetworkManager {
         this.onOpponentDisconnectCallback = null;
     }
 
-    connect() {
-        return new Promise((resolve, reject) => {
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                resolve(true);
-                return;
+    generateCode() {
+        return Math.floor(1000 + Math.random() * 9000).toString();
+    }
+
+    // Host a new Room (Player 1)
+    createRoom() {
+        return new Promise((resolve) => {
+            if (this.peer) {
+                try { this.peer.destroy(); } catch (e) {}
             }
 
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.host || 'localhost:3000';
-            const wsUrl = `${protocol}//${host}`;
+            const code = this.generateCode();
+            const peerId = `sf-room-${code}`;
 
-            this.ws = new WebSocket(wsUrl);
-
-            this.ws.onopen = () => {
-                this.isConnected = true;
-                console.log('[Network] Connected to Game Server WebSocket');
-                resolve(true);
-            };
-
-            this.ws.onerror = (err) => {
-                console.error('[Network] WebSocket error:', err);
-                this.isConnected = false;
-                reject(err);
-            };
-
-            this.ws.onclose = () => {
-                this.isConnected = false;
-                this.isOnline = false;
-                console.log('[Network] Disconnected from Game Server');
-            };
-
-            this.ws.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    this.handleMessage(data);
-                } catch (e) {
-                    console.error('[Network] Error handling message:', e);
+            this.peer = new Peer(peerId, {
+                debug: 1,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' }
+                    ]
                 }
-            };
+            });
+
+            this.peer.on('open', (id) => {
+                this.roomId = code;
+                this.myRole = 'p1';
+                this.isOnline = true;
+                this.isConnected = true;
+
+                if (this.onRoomCreatedCallback) {
+                    this.onRoomCreatedCallback({ roomId: code, role: 'p1' });
+                }
+                resolve(code);
+            });
+
+            this.peer.on('connection', (conn) => {
+                this.conn = conn;
+                this.setupConnectionHandlers();
+
+                this.conn.on('open', () => {
+                    // Start match for both host and peer
+                    this.conn.send({ type: 'START_MATCH', roomId: this.roomId });
+                    if (this.onMatchStartCallback) {
+                        this.onMatchStartCallback({ roomId: this.roomId, role: 'p1' });
+                    }
+                });
+            });
+
+            this.peer.on('error', (err) => {
+                console.error('[WebRTC Host Error]', err);
+                if (err.type === 'unavailable-id') {
+                    // Retry with new code if collision
+                    this.createRoom().then(resolve);
+                } else {
+                    if (this.onErrorCallback) {
+                        this.onErrorCallback(`Lỗi kết nối máy chủ phòng: ${err.type || err.message}`);
+                    }
+                }
+            });
         });
     }
 
-    handleMessage(data) {
-        switch (data.type) {
-            case 'ROOM_CREATED':
-                this.roomId = data.roomId;
-                this.myRole = data.role;
-                this.isOnline = true;
-                if (this.onRoomCreatedCallback) this.onRoomCreatedCallback(data);
-                break;
+    // Join an existing Room (Player 2)
+    joinRoom(code) {
+        return new Promise((resolve) => {
+            if (this.peer) {
+                try { this.peer.destroy(); } catch (e) {}
+            }
 
-            case 'ROOM_JOINED':
-                this.roomId = data.roomId;
-                this.myRole = data.role;
-                this.isOnline = true;
-                if (this.onRoomJoinedCallback) this.onRoomJoinedCallback(data);
-                break;
+            const cleanCode = String(code).trim();
+            const targetPeerId = `sf-room-${cleanCode}`;
 
-            case 'START_MATCH':
-                if (this.onMatchStartCallback) this.onMatchStartCallback(data);
-                break;
-
-            case 'OPPONENT_INPUT':
-                this.opponentControls = data.controls;
-                break;
-
-            case 'HOST_STATE_SYNC':
-                // Client P2 syncs canonical HP/positions from Host P1 if needed
-                if (window.gameInstance && this.myRole === 'p2') {
-                    window.gameInstance.syncHostState(data.state);
+            this.peer = new Peer({
+                debug: 1,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' }
+                    ]
                 }
-                break;
+            });
 
-            case 'OPPONENT_DISCONNECTED':
-                if (this.onOpponentDisconnectCallback) {
-                    this.onOpponentDisconnectCallback(data.message);
-                } else {
-                    alert(data.message || 'Đối thủ đã thoát phòng!');
+            this.peer.on('open', (myId) => {
+                this.roomId = cleanCode;
+                this.myRole = 'p2';
+                this.isOnline = true;
+
+                this.conn = this.peer.connect(targetPeerId, {
+                    reliable: true
+                });
+
+                this.setupConnectionHandlers();
+
+                this.conn.on('open', () => {
+                    this.isConnected = true;
+                    if (this.onRoomJoinedCallback) {
+                        this.onRoomJoinedCallback({ roomId: cleanCode, role: 'p2' });
+                    }
+                    resolve(true);
+                });
+            });
+
+            this.peer.on('error', (err) => {
+                console.error('[WebRTC Join Error]', err);
+                if (this.onErrorCallback) {
+                    this.onErrorCallback(`Không thể kết nối tới phòng [${cleanCode}]. Vui lòng kiểm tra lại mã phòng!`);
                 }
-                break;
-
-            case 'ERROR':
-                if (this.onErrorCallback) this.onErrorCallback(data.message);
-                else alert(data.message);
-                break;
-        }
+                resolve(false);
+            });
+        });
     }
 
-    async createRoom() {
-        await this.connect();
-        this.ws.send(JSON.stringify({ type: 'CREATE_ROOM' }));
-    }
+    setupConnectionHandlers() {
+        if (!this.conn) return;
 
-    async joinRoom(roomId) {
-        await this.connect();
-        this.ws.send(JSON.stringify({
-            type: 'JOIN_ROOM',
-            roomId: String(roomId).trim()
-        }));
+        this.conn.on('data', (data) => {
+            if (!data) return;
+
+            switch (data.type) {
+                case 'START_MATCH':
+                    if (this.onMatchStartCallback) {
+                        this.onMatchStartCallback(data);
+                    }
+                    break;
+
+                case 'PLAYER_INPUT':
+                    this.opponentControls = data.controls || this.opponentControls;
+                    break;
+
+                case 'SYNC_STATE':
+                    if (window.gameInstance && this.myRole === 'p2') {
+                        window.gameInstance.syncHostState(data.state);
+                    }
+                    break;
+
+                case 'REMATCH_REQ':
+                    if (window.gameInstance) {
+                        window.gameInstance.startNewMatch('ONLINE');
+                    }
+                    break;
+            }
+        });
+
+        this.conn.on('close', () => {
+            this.isConnected = false;
+            this.isOnline = false;
+            if (this.onOpponentDisconnectCallback) {
+                this.onOpponentDisconnectCallback('Đối thủ đã ngắt kết nối hoặc rời phòng!');
+            }
+        });
+
+        this.conn.on('error', (err) => {
+            console.warn('[WebRTC Data Error]', err);
+        });
     }
 
     sendInput(controls) {
-        if (!this.isConnected || !this.isOnline || !this.ws) return;
-        if (this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({
+        if (!this.conn || !this.isConnected || !this.isOnline) return;
+        try {
+            this.conn.send({
                 type: 'PLAYER_INPUT',
                 controls
-            }));
-        }
+            });
+        } catch (e) {}
     }
 
     sendStateSync(state) {
-        if (!this.isConnected || !this.isOnline || this.myRole !== 'p1' || !this.ws) return;
-        if (this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({
+        if (!this.conn || !this.isConnected || !this.isOnline || this.myRole !== 'p1') return;
+        try {
+            this.conn.send({
                 type: 'SYNC_STATE',
                 state
-            }));
-        }
+            });
+        } catch (e) {}
     }
 
     leaveRoom() {
         this.isOnline = false;
+        this.isConnected = false;
         this.roomId = null;
         this.myRole = null;
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
+        if (this.conn) {
+            try { this.conn.close(); } catch (e) {}
+            this.conn = null;
+        }
+        if (this.peer) {
+            try { this.peer.destroy(); } catch (e) {}
+            this.peer = null;
         }
     }
 }
