@@ -109,26 +109,26 @@ class SpriteManager {
             loadPromises.push(this.loadImage(`punk_hurt_${i}`, `Sprites/Enemy-Punk/Hurt/hurt${i}.png`));
         }
 
-        // 4. BMB Punk Frames (from bmb-Enemy-Punk)
+        // 4. BMB Punk Frames (from Sprites/BMB-Enemy-Punk)
         // Idle (4)
         for (let i = 1; i <= 4; i++) {
-            loadPromises.push(this.loadImage(`bmb_idle_${i}`, `bmb-Enemy-Punk/Idle/idle${i}.png`));
+            loadPromises.push(this.loadImage(`bmb_idle_${i}`, `Sprites/BMB-Enemy-Punk/Idle/idle${i}.png`));
         }
         // Walk (4)
         for (let i = 1; i <= 4; i++) {
-            loadPromises.push(this.loadImage(`bmb_walk_${i}`, `bmb-Enemy-Punk/Walk/walk${i}.png`));
+            loadPromises.push(this.loadImage(`bmb_walk_${i}`, `Sprites/BMB-Enemy-Punk/Walk/walk${i}.png`));
         }
         // Punch (3)
         for (let i = 1; i <= 3; i++) {
-            loadPromises.push(this.loadImage(`bmb_punch_${i}`, `bmb-Enemy-Punk/Punch/punch${i}.png`));
+            loadPromises.push(this.loadImage(`bmb_punch_${i}`, `Sprites/BMB-Enemy-Punk/Punch/punch${i}.png`));
         }
         // Kick (4)
         for (let i = 1; i <= 4; i++) {
-            loadPromises.push(this.loadImage(`bmb_kick_${i}`, `bmb-Enemy-Punk/Kick/kick${i}.png`));
+            loadPromises.push(this.loadImage(`bmb_kick_${i}`, `Sprites/BMB-Enemy-Punk/Kick/kick${i}.png`));
         }
         // Hurt (4)
         for (let i = 1; i <= 4; i++) {
-            loadPromises.push(this.loadImage(`bmb_hurt_${i}`, `bmb-Enemy-Punk/Hurt/hurt${i}.png`));
+            loadPromises.push(this.loadImage(`bmb_hurt_${i}`, `Sprites/BMB-Enemy-Punk/Hurt/hurt${i}.png`));
         }
 
         // Monitor progress
