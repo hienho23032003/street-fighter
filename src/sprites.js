@@ -2,6 +2,7 @@
 class SpriteManager {
     constructor() {
         this.images = {};
+        this.animationCache = {};
         this.totalAssets = 0;
         this.loadedAssets = 0;
         this.isLoaded = false;
@@ -113,6 +114,7 @@ class SpriteManager {
 
         await Promise.all(loadPromises);
         clearInterval(checkInterval);
+        this.buildAnimationCache();
         if (onProgress) onProgress(1.0);
         this.isLoaded = true;
     }
@@ -121,8 +123,20 @@ class SpriteManager {
         return this.images[key] || null;
     }
 
-    // Get array of images for an animation sequence
-    getAnimationFrames(charType, actionName) {
+    buildAnimationCache() {
+        const charTypes = ['GIRL', 'PUNK'];
+        const actions = ['idle', 'walk', 'jab', 'punch', 'kick', 'jump', 'jump_kick', 'dive_kick', 'hurt', 'block', 'heavy_punch', 'dash_tackle'];
+
+        for (const charType of charTypes) {
+            for (const actionName of actions) {
+                const cacheKey = `${charType}_${actionName}`;
+                this.animationCache[cacheKey] = this._generateFrames(charType, actionName);
+            }
+        }
+    }
+
+    // Generate array of images for an animation sequence
+    _generateFrames(charType, actionName) {
         const frames = [];
         let prefix = charType === 'GIRL' ? 'girl_' : 'punk_';
 
@@ -137,7 +151,7 @@ class SpriteManager {
                 'jump_kick': 3,
                 'dive_kick': 5,
                 'hurt': 2,
-                'block': 1 // Use jab1 / idle frame as block
+                'block': 1
             },
             'PUNK': {
                 'idle': 4,
@@ -173,6 +187,17 @@ class SpriteManager {
             if (img) frames.push(img);
         }
 
+        return frames;
+    }
+
+    // High performance O(1) cached lookup
+    getAnimationFrames(charType, actionName) {
+        const cacheKey = `${charType}_${actionName}`;
+        if (this.animationCache[cacheKey]) {
+            return this.animationCache[cacheKey];
+        }
+        const frames = this._generateFrames(charType, actionName);
+        this.animationCache[cacheKey] = frames;
         return frames;
     }
 }

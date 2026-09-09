@@ -105,6 +105,9 @@ body {
     border: 2px solid #1a1c29;
     border-radius: 6px;
     overflow: hidden;
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 #gameCanvas {
@@ -113,6 +116,8 @@ body {
     display: block;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
+    transform: translateZ(0);
+    will-change: transform;
 }
 
 /* CRT Scanlines Overlay */
@@ -127,6 +132,8 @@ body {
     background-size: 100% 3px, 6px 100%;
     box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.7);
     z-index: 20;
+    transform: translateZ(0);
+    contain: strict;
 }
 
 /* HUD Overlay on Canvas */
@@ -142,6 +149,8 @@ body {
     justify-content: space-between;
     padding: 14px 18px;
     z-index: 10;
+    transform: translateZ(0);
+    contain: layout style;
 }
 
 /* Top Health & Timer Bar */

@@ -60,6 +60,43 @@ class Game {
         this.p1ChosenChar = 'GIRL';
         this.p2ChosenChar = 'PUNK';
 
+        // High Performance 60 FPS Fixed Timestep Accumulator
+        this.lastTime = performance.now();
+        this.accumulator = 0;
+        this.timeStep = 1000 / 60; // strictly 16.6667ms
+
+        // Cached DOM nodes and state diffing to prevent layout thrashing
+        this.domElements = {
+            p1Bar: document.getElementById('p1HpBar'),
+            p1Buffer: document.getElementById('p1HpBuffer'),
+            p1Energy: document.getElementById('p1EnergyBar'),
+            p2Bar: document.getElementById('p2HpBar'),
+            p2Buffer: document.getElementById('p2HpBuffer'),
+            p2Energy: document.getElementById('p2EnergyBar'),
+            timer: document.getElementById('roundTimer'),
+            p1R1: document.getElementById('p1R1'),
+            p1R2: document.getElementById('p1R2'),
+            p2R1: document.getElementById('p2R1'),
+            p2R2: document.getElementById('p2R2'),
+            p1Combo: document.getElementById('p1Combo'),
+            p2Combo: document.getElementById('p2Combo')
+        };
+        this.hudCache = {
+            p1Hp: -1,
+            p1Buffer: -1,
+            p1Energy: -1,
+            p2Hp: -1,
+            p2Buffer: -1,
+            p2Energy: -1,
+            timer: -1,
+            p1R1: null,
+            p1R2: null,
+            p2R1: null,
+            p2R2: null,
+            p1ComboHits: -1,
+            p2ComboHits: -1
+        };
+
         // Keys state tracker
         this.keys = {};
         this.lastP1InputJson = '';
@@ -403,63 +440,106 @@ class Game {
         this.updateHUD();
     }
 
-    // Update HUD elements
+    // High-performance DOM-cached HUD updates (0 layout thrashing)
     updateHUD() {
+        const d = this.domElements;
+        const s = this.hudCache;
+
         // Player 1 HP & Energy
-        const p1Bar = document.getElementById('p1HpBar');
-        const p1Buffer = document.getElementById('p1HpBuffer');
-        const p1Energy = document.getElementById('p1EnergyBar');
-        if (p1Bar) p1Bar.style.width = `${Math.max(0, this.player1.hp)}%`;
-        if (p1Buffer) p1Buffer.style.width = `${Math.max(0, this.player1.bufferedHp)}%`;
-        if (p1Energy) {
-            p1Energy.style.width = `${this.player1.energy}%`;
-            p1Energy.classList.toggle('full', this.player1.energy >= 100);
+        const p1HpRounded = Math.max(0, Math.round(this.player1.hp));
+        if (s.p1Hp !== p1HpRounded) {
+            s.p1Hp = p1HpRounded;
+            if (d.p1Bar) d.p1Bar.style.width = `${p1HpRounded}%`;
         }
 
-        // Player 2 HP & Energy
-        const p2Bar = document.getElementById('p2HpBar');
-        const p2Buffer = document.getElementById('p2HpBuffer');
-        const p2Energy = document.getElementById('p2EnergyBar');
-        if (p2Bar) p2Bar.style.width = `${Math.max(0, this.player2.hp)}%`;
-        if (p2Buffer) p2Buffer.style.width = `${Math.max(0, this.player2.bufferedHp)}%`;
-        if (p2Energy) {
-            p2Energy.style.width = `${this.player2.energy}%`;
-            p2Energy.classList.toggle('full', this.player2.energy >= 100);
+        const p1BufRounded = Math.max(0, Math.round(this.player1.bufferedHp));
+        if (s.p1Buffer !== p1BufRounded) {
+            s.p1Buffer = p1BufRounded;
+            if (d.p1Buffer) d.p1Buffer.style.width = `${p1BufRounded}%`;
         }
 
-        // Timer
-        const timerEl = document.getElementById('roundTimer');
-        if (timerEl) timerEl.innerText = this.roundTimer < 10 ? `0${this.roundTimer}` : this.roundTimer;
-
-        // Rounds Won Dots
-        const p1R1 = document.getElementById('p1R1');
-        const p1R2 = document.getElementById('p1R2');
-        if (p1R1) p1R1.classList.toggle('active', this.player1.roundsWon >= 1);
-        if (p1R2) p1R2.classList.toggle('active', this.player1.roundsWon >= 2);
-
-        const p2R1 = document.getElementById('p2R1');
-        const p2R2 = document.getElementById('p2R2');
-        if (p2R1) p2R1.classList.toggle('active', this.player2.roundsWon >= 1);
-        if (p2R2) p2R2.classList.toggle('active', this.player2.roundsWon >= 2);
-
-        // Combo counters
-        const p1Combo = document.getElementById('p1Combo');
-        if (p1Combo) {
-            if (this.player1.comboHits > 1) {
-                p1Combo.innerText = `${this.player1.comboHits} HITS!`;
-                p1Combo.classList.remove('hidden');
-            } else {
-                p1Combo.classList.add('hidden');
+        const p1EnergyRounded = Math.max(0, Math.min(100, Math.round(this.player1.energy)));
+        if (s.p1Energy !== p1EnergyRounded) {
+            s.p1Energy = p1EnergyRounded;
+            if (d.p1Energy) {
+                d.p1Energy.style.width = `${p1EnergyRounded}%`;
+                d.p1Energy.classList.toggle('full', p1EnergyRounded >= 100);
             }
         }
 
-        const p2Combo = document.getElementById('p2Combo');
-        if (p2Combo) {
-            if (this.player2.comboHits > 1) {
-                p2Combo.innerText = `${this.player2.comboHits} HITS!`;
-                p2Combo.classList.remove('hidden');
-            } else {
-                p2Combo.classList.add('hidden');
+        // Player 2 HP & Energy
+        const p2HpRounded = Math.max(0, Math.round(this.player2.hp));
+        if (s.p2Hp !== p2HpRounded) {
+            s.p2Hp = p2HpRounded;
+            if (d.p2Bar) d.p2Bar.style.width = `${p2HpRounded}%`;
+        }
+
+        const p2BufRounded = Math.max(0, Math.round(this.player2.bufferedHp));
+        if (s.p2Buffer !== p2BufRounded) {
+            s.p2Buffer = p2BufRounded;
+            if (d.p2Buffer) d.p2Buffer.style.width = `${p2BufRounded}%`;
+        }
+
+        const p2EnergyRounded = Math.max(0, Math.min(100, Math.round(this.player2.energy)));
+        if (s.p2Energy !== p2EnergyRounded) {
+            s.p2Energy = p2EnergyRounded;
+            if (d.p2Energy) {
+                d.p2Energy.style.width = `${p2EnergyRounded}%`;
+                d.p2Energy.classList.toggle('full', p2EnergyRounded >= 100);
+            }
+        }
+
+        // Timer
+        if (s.timer !== this.roundTimer) {
+            s.timer = this.roundTimer;
+            if (d.timer) d.timer.innerText = this.roundTimer < 10 ? `0${this.roundTimer}` : this.roundTimer;
+        }
+
+        // Rounds Won Dots
+        const p1W1 = this.player1.roundsWon >= 1;
+        if (s.p1R1 !== p1W1) {
+            s.p1R1 = p1W1;
+            if (d.p1R1) d.p1R1.classList.toggle('active', p1W1);
+        }
+        const p1W2 = this.player1.roundsWon >= 2;
+        if (s.p1R2 !== p1W2) {
+            s.p1R2 = p1W2;
+            if (d.p1R2) d.p1R2.classList.toggle('active', p1W2);
+        }
+
+        const p2W1 = this.player2.roundsWon >= 1;
+        if (s.p2R1 !== p2W1) {
+            s.p2R1 = p2W1;
+            if (d.p2R1) d.p2R1.classList.toggle('active', p2W1);
+        }
+        const p2W2 = this.player2.roundsWon >= 2;
+        if (s.p2R2 !== p2W2) {
+            s.p2R2 = p2W2;
+            if (d.p2R2) d.p2R2.classList.toggle('active', p2W2);
+        }
+
+        // Combo counters
+        if (s.p1ComboHits !== this.player1.comboHits) {
+            s.p1ComboHits = this.player1.comboHits;
+            if (d.p1Combo) {
+                if (this.player1.comboHits > 1) {
+                    d.p1Combo.innerText = `${this.player1.comboHits} HITS!`;
+                    d.p1Combo.classList.remove('hidden');
+                } else {
+                    d.p1Combo.classList.add('hidden');
+                }
+            }
+        }
+
+        if (s.p2ComboHits !== this.player2.comboHits) {
+            s.p2ComboHits = this.player2.comboHits;
+            if (d.p2Combo) {
+                if (this.player2.comboHits > 1) {
+                    d.p2Combo.innerText = `${this.player2.comboHits} HITS!`;
+                    d.p2Combo.classList.remove('hidden');
+                } else {
+                    d.p2Combo.classList.add('hidden');
+                }
             }
         }
     }
@@ -521,16 +601,18 @@ class Game {
             }
         }
 
-        // Update Particles
-        for (let i = this.particles.length - 1; i >= 0; i--) {
+        // High speed in-place particle compaction (0 GC allocations)
+        let livingParticles = 0;
+        for (let i = 0; i < this.particles.length; i++) {
             const p = this.particles[i];
             p.x += p.vx;
             p.y += p.vy;
             p.life -= p.decay;
-            if (p.life <= 0) {
-                this.particles.splice(i, 1);
+            if (p.life > 0) {
+                this.particles[livingParticles++] = p;
             }
         }
+        this.particles.length = livingParticles;
 
         // Decay screen shake
         if (this.screenShake > 0) {
@@ -544,10 +626,10 @@ class Game {
     render() {
         this.ctx.save();
 
-        // Apply Screen Shake
+        // Apply Screen Shake with integer translation
         if (this.screenShake > 0) {
-            const shakeX = (Math.random() * 2 - 1) * this.screenShake;
-            const shakeY = (Math.random() * 2 - 1) * this.screenShake;
+            const shakeX = Math.round((Math.random() * 2 - 1) * this.screenShake);
+            const shakeY = Math.round((Math.random() * 2 - 1) * this.screenShake);
             this.ctx.translate(shakeX, shakeY);
         }
 
@@ -573,10 +655,11 @@ class Game {
         this.player2.draw(this.ctx);
 
         // 5. Render Particles
-        for (const p of this.particles) {
+        for (let i = 0; i < this.particles.length; i++) {
+            const p = this.particles[i];
             this.ctx.fillStyle = p.color;
             this.ctx.globalAlpha = p.life;
-            this.ctx.fillRect(p.x, p.y, p.size, p.size);
+            this.ctx.fillRect(Math.round(p.x), Math.round(p.y), p.size, p.size);
         }
         this.ctx.globalAlpha = 1.0;
 
@@ -592,15 +675,17 @@ class Game {
             this.ctx.shadowBlur = 18;
             this.ctx.lineWidth = 6;
             this.ctx.strokeStyle = '#111';
-            this.ctx.strokeText(this.announcementText, this.width / 2, this.height / 2 - 20);
-            this.ctx.fillText(this.announcementText, this.width / 2, this.height / 2 - 20);
+            const midX = Math.round(this.width / 2);
+            const midY = Math.round(this.height / 2 - 20);
+            this.ctx.strokeText(this.announcementText, midX, midY);
+            this.ctx.fillText(this.announcementText, midX, midY);
 
             if (this.announcementSub) {
                 this.ctx.font = '700 24px "Chakra Petch", "Orbitron", sans-serif';
                 this.ctx.fillStyle = '#ffffff';
                 this.ctx.shadowColor = '#00f2fe';
                 this.ctx.shadowBlur = 12;
-                this.ctx.fillText(this.announcementSub, this.width / 2, this.height / 2 + 45);
+                this.ctx.fillText(this.announcementSub, midX, midY + 65);
             }
             this.ctx.restore();
         }
@@ -630,10 +715,24 @@ class Game {
         }
     }
 
-    loop() {
-        this.update();
+    // High precision fixed timestep accumulator loop
+    loop(currentTime = performance.now()) {
+        let deltaTime = currentTime - this.lastTime;
+        this.lastTime = currentTime;
+
+        // Prevent spiral of death on background tab or giant lag spike
+        if (deltaTime > 200) deltaTime = 200;
+
+        this.accumulator += deltaTime;
+
+        // Run fixed physics ticks
+        while (this.accumulator >= this.timeStep) {
+            this.update();
+            this.accumulator -= this.timeStep;
+        }
+
         this.render();
-        requestAnimationFrame(() => this.loop());
+        requestAnimationFrame((t) => this.loop(t));
     }
 }
 
