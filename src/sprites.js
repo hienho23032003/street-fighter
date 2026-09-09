@@ -96,6 +96,10 @@ class SpriteManager {
         for (let i = 1; i <= 3; i++) {
             loadPromises.push(this.loadImage(`punk_punch_${i}`, `Sprites/Enemy-Punk/Punch/punch${i}.png`));
         }
+        // Kick (4)
+        for (let i = 1; i <= 4; i++) {
+            loadPromises.push(this.loadImage(`punk_kick_${i}`, `Sprites/Enemy-Punk/Kick/kick${i}.png`));
+        }
         // Hurt (4)
         for (let i = 1; i <= 4; i++) {
             loadPromises.push(this.loadImage(`punk_hurt_${i}`, `Sprites/Enemy-Punk/Hurt/hurt${i}.png`));
@@ -155,8 +159,8 @@ class SpriteManager {
             let key = `${prefix}${actionName}_${i}`;
             // Special mappings for punk actions that reuse or adapt frames
             if (charType === 'PUNK') {
-                if (actionName === 'kick') key = `punk_walk_${i}`;
-                if (actionName === 'jump_kick') key = `punk_walk_${i === 1 ? 4 : 3}`;
+                if (actionName === 'kick') key = `punk_kick_${i}`;
+                if (actionName === 'jump_kick') key = `punk_kick_${i === 1 ? 3 : 4}`;
                 if (actionName === 'heavy_punch') key = `punk_punch_${i}`;
                 if (actionName === 'dash_tackle') key = `punk_punch_${i}`;
                 if (actionName === 'jump') key = `punk_walk_${i === 1 ? 2 : 4}`;

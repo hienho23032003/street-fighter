@@ -208,23 +208,15 @@ class Fighter {
         if (!this.isGrounded) {
             // Jump Kick
             this.state = 'ATTACK_2';
-            if (this.charType === 'GIRL') {
-                this.setAnimation('jump_kick', 6, false);
-            } else {
-                this.setAnimation('punch', 6, false);
-            }
+            this.setAnimation('jump_kick', 6, false);
             if (window.soundManager) window.soundManager.playHeavy();
             return;
         }
 
-        // Ground Heavy Attack
+        // Ground Heavy Attack (Kick)
         this.vx = 0;
         this.state = 'ATTACK_2';
-        if (this.charType === 'GIRL') {
-            this.setAnimation('kick', 6, false);
-        } else {
-            this.setAnimation('heavy_punch', 8, false);
-        }
+        this.setAnimation('kick', 6, false);
         if (window.soundManager) window.soundManager.playHeavy();
     }
 
