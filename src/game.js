@@ -62,6 +62,8 @@ class Game {
 
         // Keys state tracker
         this.keys = {};
+        this.lastP1InputJson = '';
+        this.lastP2InputJson = '';
         this.setupInput();
 
         // Bind global instance for access by fighters/particles
@@ -69,73 +71,120 @@ class Game {
     }
 
     setupInput() {
+        this.keys = {};
+
+        const registerKey = (e, isDown) => {
+            if (e.code) {
+                this.keys[e.code] = isDown;
+            }
+            if (e.key) {
+                this.keys[e.key.toLowerCase()] = isDown;
+                this.keys[e.key.toUpperCase()] = isDown;
+            }
+        };
+
         window.addEventListener('keydown', (e) => {
-            this.keys[e.code] = true;
-            if (e.code === 'KeyP' && (this.gameState === 'PLAYING' || this.gameState === 'PAUSED')) {
+            registerKey(e, true);
+            if ((e.code === 'KeyP' || e.key === 'p' || e.key === 'P') && (this.gameState === 'PLAYING' || this.gameState === 'PAUSED')) {
                 if (this.gameMode !== 'ONLINE') {
                     this.togglePause();
                 }
             }
             // Prevent scrolling on arrow keys and space
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
                 e.preventDefault();
             }
         });
 
         window.addEventListener('keyup', (e) => {
-            this.keys[e.code] = false;
+            registerKey(e, false);
         });
+
+        // Anti-stuck: Clear keys when tab or window loses focus
+        window.addEventListener('blur', () => {
+            this.keys = {};
+        });
+        window.addEventListener('focus', () => {
+            this.keys = {};
+        });
+    }
+
+    isKeyPressed(...keys) {
+        for (const k of keys) {
+            if (this.keys[k]) return true;
+        }
+        return false;
     }
 
     getLocalPrimaryControls() {
         return {
-            left: this.keys['KeyA'] || this.keys['ArrowLeft'] || false,
-            right: this.keys['KeyD'] || this.keys['ArrowRight'] || false,
-            up: this.keys['KeyW'] || this.keys['ArrowUp'] || false,
-            down: this.keys['KeyS'] || this.keys['ArrowDown'] || false,
-            attack1: this.keys['KeyJ'] || this.keys['Numpad1'] || this.keys['KeyU'] || false,
-            attack2: this.keys['KeyK'] || this.keys['Numpad2'] || this.keys['KeyI'] || false,
-            special: this.keys['KeyL'] || this.keys['Numpad3'] || this.keys['KeyO'] || false
+            left: this.isKeyPressed('KeyA', 'a', 'A', 'ArrowLeft', 'arrowleft'),
+            right: this.isKeyPressed('KeyD', 'd', 'D', 'ArrowRight', 'arrowright'),
+            up: this.isKeyPressed('KeyW', 'w', 'W', 'ArrowUp', 'arrowup', 'Space', ' '),
+            down: this.isKeyPressed('KeyS', 's', 'S', 'ArrowDown', 'arrowdown'),
+            attack1: this.isKeyPressed('KeyJ', 'j', 'J', 'Numpad1', '1', 'KeyU', 'u', 'U'),
+            attack2: this.isKeyPressed('KeyK', 'k', 'K', 'Numpad2', '2', 'KeyI', 'i', 'I'),
+            special: this.isKeyPressed('KeyL', 'l', 'L', 'Numpad3', '3', 'KeyO', 'o', 'O')
+        };
+    }
+
+    getLocalP1Controls() {
+        return {
+            left: this.isKeyPressed('KeyA', 'a', 'A'),
+            right: this.isKeyPressed('KeyD', 'd', 'D'),
+            up: this.isKeyPressed('KeyW', 'w', 'W'),
+            down: this.isKeyPressed('KeyS', 's', 'S'),
+            attack1: this.isKeyPressed('KeyJ', 'j', 'J'),
+            attack2: this.isKeyPressed('KeyK', 'k', 'K'),
+            special: this.isKeyPressed('KeyL', 'l', 'L')
+        };
+    }
+
+    getLocalP2Controls() {
+        return {
+            left: this.isKeyPressed('ArrowLeft', 'arrowleft'),
+            right: this.isKeyPressed('ArrowRight', 'arrowright'),
+            up: this.isKeyPressed('ArrowUp', 'arrowup'),
+            down: this.isKeyPressed('ArrowDown', 'arrowdown'),
+            attack1: this.isKeyPressed('Numpad1', '1', 'KeyU', 'u', 'U'),
+            attack2: this.isKeyPressed('Numpad2', '2', 'KeyI', 'i', 'I'),
+            special: this.isKeyPressed('Numpad3', '3', 'KeyO', 'o', 'O')
         };
     }
 
     getP1Controls() {
         if (this.gameMode === 'ONLINE') {
-            if (window.networkManager.myRole === 'p1') {
-                const controls = {
-                    left: this.keys['KeyA'] || false,
-                    right: this.keys['KeyD'] || false,
-                    up: this.keys['KeyW'] || false,
-                    down: this.keys['KeyS'] || false,
-                    attack1: this.keys['KeyJ'] || false,
-                    attack2: this.keys['KeyK'] || false,
-                    special: this.keys['KeyL'] || false
-                };
-                window.networkManager.sendInput(controls);
+            if (window.networkManager && window.networkManager.myRole === 'p1') {
+                const controls = this.getLocalPrimaryControls();
+                const json = JSON.stringify(controls);
+                if (json !== this.lastP1InputJson || this.syncTick % 4 === 0) {
+                    this.lastP1InputJson = json;
+                    window.networkManager.sendInput(controls);
+                }
                 return controls;
-            } else {
+            } else if (window.networkManager) {
                 return window.networkManager.opponentControls;
             }
         }
 
-        return {
-            left: this.keys['KeyA'] || false,
-            right: this.keys['KeyD'] || false,
-            up: this.keys['KeyW'] || false,
-            down: this.keys['KeyS'] || false,
-            attack1: this.keys['KeyJ'] || false,
-            attack2: this.keys['KeyK'] || false,
-            special: this.keys['KeyL'] || false
-        };
+        if (this.gameMode === 'PVE') {
+            return this.getLocalPrimaryControls();
+        }
+
+        return this.getLocalP1Controls();
     }
 
     getP2Controls() {
         if (this.gameMode === 'ONLINE') {
-            if (window.networkManager.myRole === 'p2') {
+            if (window.networkManager && window.networkManager.myRole === 'p2') {
                 const controls = this.getLocalPrimaryControls();
-                window.networkManager.sendInput(controls);
+                const json = JSON.stringify(controls);
+                if (json !== this.lastP2InputJson || this.syncTick % 4 === 0) {
+                    this.lastP2InputJson = json;
+                    window.networkManager.sendInput(controls);
+                }
                 return controls;
-            } else {
+            } else if (window.networkManager) {
                 return window.networkManager.opponentControls;
             }
         }
@@ -144,15 +193,7 @@ class Game {
             return this.aiController.update(this.player2, this.player1);
         }
 
-        return {
-            left: this.keys['ArrowLeft'] || false,
-            right: this.keys['ArrowRight'] || false,
-            up: this.keys['ArrowUp'] || false,
-            down: this.keys['ArrowDown'] || false,
-            attack1: this.keys['Numpad1'] || this.keys['KeyU'] || false,
-            attack2: this.keys['Numpad2'] || this.keys['KeyI'] || false,
-            special: this.keys['Numpad3'] || this.keys['KeyO'] || false
-        };
+        return this.getLocalP2Controls();
     }
 
     startNewMatch(mode = 'PVP', aiDifficulty = 'NORMAL', p1Char = 'GIRL', p2Char = 'PUNK') {
@@ -179,21 +220,24 @@ class Game {
         document.getElementById('multiplayerModal').classList.add('hidden');
         document.getElementById('victoryModal').classList.add('hidden');
 
-        // Update name badge in HUD
+        // Update name badge in HUD with clear BẠN / ĐỐI THỦ indications
         const p1NameEl = document.querySelector('.fighter-name.p1');
         const p2NameEl = document.querySelector('.fighter-name.p2');
         
         if (mode === 'ONLINE') {
-            if (window.networkManager.myRole === 'p1') {
-                if (p1NameEl) p1NameEl.innerText = `${this.player1.name} (YOU)`;
-                if (p2NameEl) p2NameEl.innerText = `${this.player2.name} (P2)`;
+            if (window.networkManager && window.networkManager.myRole === 'p1') {
+                if (p1NameEl) p1NameEl.innerHTML = `<span class="you-badge">[ BẠN ]</span> ${this.player1.name} (1P)`;
+                if (p2NameEl) p2NameEl.innerHTML = `${this.player2.name} (2P) <span class="foe-badge">[ ĐỐI THỦ ]</span>`;
             } else {
-                if (p1NameEl) p1NameEl.innerText = `${this.player1.name} (P1)`;
-                if (p2NameEl) p2NameEl.innerText = `${this.player2.name} (YOU)`;
+                if (p1NameEl) p1NameEl.innerHTML = `<span class="foe-badge">[ ĐỐI THỦ ]</span> ${this.player1.name} (1P)`;
+                if (p2NameEl) p2NameEl.innerHTML = `${this.player2.name} (2P) <span class="you-badge">[ BẠN ]</span>`;
             }
+        } else if (mode === 'PVE') {
+            if (p1NameEl) p1NameEl.innerHTML = `<span class="you-badge">[ BẠN ]</span> ${this.player1.name}`;
+            if (p2NameEl) p2NameEl.innerHTML = `${this.player2.name} <span class="foe-badge">[ CPU - ${aiDifficulty} ]</span>`;
         } else {
             if (p1NameEl) p1NameEl.innerText = `${this.player1.name}${isMirrorMatch ? ' (1P)' : ''}`;
-            if (p2NameEl) p2NameEl.innerText = `${this.player2.name}${isMirrorMatch ? ' (2P)' : ''}${mode === 'PVE' ? ` [${aiDifficulty}]` : ''}`;
+            if (p2NameEl) p2NameEl.innerText = `${this.player2.name}${isMirrorMatch ? ' (2P)' : ''}`;
         }
 
         if (window.soundManager) {
@@ -336,11 +380,26 @@ class Game {
         if (!state) return;
         this.player1.hp = state.p1Hp;
         this.player2.hp = state.p2Hp;
-        this.player1.x = state.p1X;
+        this.player1.bufferedHp = (state.p1BufferedHp !== undefined) ? state.p1BufferedHp : state.p1Hp;
+        this.player2.bufferedHp = (state.p2BufferedHp !== undefined) ? state.p2BufferedHp : state.p2Hp;
+        this.player1.energy = (state.p1Energy !== undefined) ? state.p1Energy : this.player1.energy;
+        this.player2.energy = (state.p2Energy !== undefined) ? state.p2Energy : this.player2.energy;
+        this.player1.roundsWon = (state.p1RoundsWon !== undefined) ? state.p1RoundsWon : this.player1.roundsWon;
+        this.player2.roundsWon = (state.p2RoundsWon !== undefined) ? state.p2RoundsWon : this.player2.roundsWon;
+        
+        if (Math.abs(this.player1.x - state.p1X) > 20) this.player1.x = state.p1X;
+        if (Math.abs(this.player2.x - state.p2X) > 20) this.player2.x = state.p2X;
         this.player1.y = state.p1Y;
-        this.player2.x = state.p2X;
         this.player2.y = state.p2Y;
+        this.player1.facing = state.p1Facing || this.player1.facing;
+        this.player2.facing = state.p2Facing || this.player2.facing;
+        this.player1.comboHits = state.p1Combo || 0;
+        this.player2.comboHits = state.p2Combo || 0;
         this.roundTimer = state.timer;
+        if (state.gameState && this.gameState !== state.gameState) this.gameState = state.gameState;
+        if (state.announcementText !== undefined) this.announcementText = state.announcementText;
+        if (state.announcementSub !== undefined) this.announcementSub = state.announcementSub;
+
         this.updateHUD();
     }
 
@@ -423,17 +482,34 @@ class Game {
         this.player2.update(this.player1, this.width);
 
         // In Online Mode, Host (P1) periodically sends state sync
-        if (this.gameMode === 'ONLINE' && window.networkManager.myRole === 'p1') {
+        if (this.gameMode === 'ONLINE' && window.networkManager && window.networkManager.myRole === 'p1') {
             this.syncTick++;
-            if (this.syncTick % 10 === 0) {
+            if (this.syncTick % 4 === 0) {
                 window.networkManager.sendStateSync({
                     p1Hp: this.player1.hp,
                     p2Hp: this.player2.hp,
+                    p1BufferedHp: this.player1.bufferedHp,
+                    p2BufferedHp: this.player2.bufferedHp,
+                    p1Energy: this.player1.energy,
+                    p2Energy: this.player2.energy,
+                    p1RoundsWon: this.player1.roundsWon,
+                    p2RoundsWon: this.player2.roundsWon,
                     p1X: this.player1.x,
                     p1Y: this.player1.y,
                     p2X: this.player2.x,
                     p2Y: this.player2.y,
-                    timer: this.roundTimer
+                    p1Facing: this.player1.facing,
+                    p2Facing: this.player2.facing,
+                    p1State: this.player1.state,
+                    p2State: this.player2.state,
+                    p1Anim: this.player1.currentAnim,
+                    p2Anim: this.player2.currentAnim,
+                    p1Combo: this.player1.comboHits,
+                    p2Combo: this.player2.comboHits,
+                    timer: this.roundTimer,
+                    gameState: this.gameState,
+                    announcementText: this.announcementText,
+                    announcementSub: this.announcementSub
                 });
             }
         }

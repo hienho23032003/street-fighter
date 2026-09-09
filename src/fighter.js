@@ -48,7 +48,7 @@ class Fighter {
         this.animLoop = true;
 
         // Custom properties per character
-        this.attackCooldown = 0;
+        this.attackTimer = 0; // Safety timeout to prevent stuck attack animations
     }
 
     setCharacter(charType, palette = '1P') {
@@ -73,6 +73,7 @@ class Fighter {
         this.isGrounded = true;
         this.isBlocking = false;
         this.hitStunTimer = 0;
+        this.attackTimer = 0;
         this.attackHasHit = false;
         this.comboHits = 0;
         this.setAnimation('idle', 8, true);
@@ -89,7 +90,7 @@ class Fighter {
 
     // Input handlers
     handleInput(controls, opponent) {
-        if (this.state === 'HURT' || this.state === 'KO' || this.state === 'VICTORY') return;
+        if (!controls || this.state === 'HURT' || this.state === 'KO' || this.state === 'VICTORY') return;
 
         // Face opponent in neutral/walk states
         if (this.isGrounded && !this.state.startsWith('ATTACK') && this.state !== 'SPECIAL') {
@@ -146,6 +147,10 @@ class Fighter {
             return;
         } else {
             this.isBlocking = false;
+            if (this.state === 'BLOCK') {
+                this.state = 'IDLE';
+                this.setAnimation('idle', 9, true);
+            }
         }
 
         // 3. Jumping
@@ -158,13 +163,13 @@ class Fighter {
         }
 
         // 4. Horizontal Movement
-        if (controls.left) {
+        if (controls.left && !controls.right) {
             this.vx = -this.speed;
             if (this.isGrounded && this.state !== 'JUMP') {
                 this.state = 'WALK';
                 this.setAnimation('walk', 6, true);
             }
-        } else if (controls.right) {
+        } else if (controls.right && !controls.left) {
             this.vx = this.speed;
             if (this.isGrounded && this.state !== 'JUMP') {
                 this.state = 'WALK';
@@ -181,6 +186,7 @@ class Fighter {
 
     performLightAttack() {
         this.attackHasHit = false;
+        this.attackTimer = 22; // Safety timer
         if (!this.isGrounded) {
             // Air Light Attack (Jump Kick / Air Jab)
             this.state = 'ATTACK_1';
@@ -205,6 +211,7 @@ class Fighter {
 
     performHeavyAttack() {
         this.attackHasHit = false;
+        this.attackTimer = 28; // Safety timer
         if (!this.isGrounded) {
             // Jump Kick
             this.state = 'ATTACK_2';
@@ -224,6 +231,7 @@ class Fighter {
         if (this.energy < 100) return; // Phải đủ 100% nộ mới được tung chiêu
         this.energy = 0; // Trừ sạch thanh nộ về 0%
         this.attackHasHit = false;
+        this.attackTimer = 35; // Safety timer
         this.state = 'SPECIAL';
 
         if (this.charType === 'GIRL') {
@@ -242,6 +250,17 @@ class Fighter {
 
     // Physical update loop (60 FPS)
     update(opponent, stageWidth = 960) {
+        // Attack safety countdown to prevent stuck states
+        if (this.state.startsWith('ATTACK') || this.state === 'SPECIAL') {
+            if (this.attackTimer > 0) {
+                this.attackTimer--;
+                if (this.attackTimer === 0 && this.isGrounded) {
+                    this.state = 'IDLE';
+                    this.setAnimation('idle', 9, true);
+                }
+            }
+        }
+
         // Cooldowns & timers
         if (this.comboResetTimer > 0) {
             this.comboResetTimer--;
@@ -281,7 +300,7 @@ class Fighter {
                 this.y = this.groundY;
                 this.vy = 0;
                 this.isGrounded = true;
-                if (this.state === 'JUMP' || this.state === 'SPECIAL' || this.state === 'ATTACK_1') {
+                if (this.state === 'JUMP' || this.state === 'SPECIAL' || this.state === 'ATTACK_1' || this.state === 'ATTACK_2') {
                     this.state = 'IDLE';
                     this.setAnimation('idle', 9, true);
                 }
@@ -333,6 +352,12 @@ class Fighter {
                         this.state = 'IDLE';
                         this.setAnimation('idle', 9, true);
                     }
+                }
+            } else {
+                // If frames empty, fallback to idle
+                if (this.state.startsWith('ATTACK') || this.state === 'SPECIAL') {
+                    this.state = 'IDLE';
+                    this.setAnimation('idle', 9, true);
                 }
             }
         }
@@ -442,7 +467,7 @@ class Fighter {
             // Full impact
             this.hp = Math.max(0, this.hp - damage);
             this.vx = knockbackX;
-            this.hitStunTimer = hitStun;
+            this.hitStunTimer = Math.max(1, Number(hitStun) || 14);
             this.state = 'HURT';
             this.setAnimation('hurt', 6, false);
             this.energy = Math.min(100, this.energy + 4);
@@ -504,6 +529,58 @@ class Fighter {
             }
 
             ctx.drawImage(frameImg, -drawW / 2, -drawH + 10);
+            ctx.restore();
+        }
+
+        // 3. Draw Overhead Indicator Tag (1P / 2P / YOU / CPU)
+        if (window.gameInstance && ['PLAYING', 'COUNTDOWN', 'ROUND_OVER'].includes(window.gameInstance.gameState)) {
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.font = '900 11px "Orbitron", "Chakra Petch", sans-serif';
+
+            let tagText = this.id === 'p1' ? '1P' : '2P';
+            let tagColor = this.id === 'p1' ? '#00f2fe' : '#ff4b2b';
+            let isUser = false;
+
+            if (window.gameInstance.gameMode === 'ONLINE') {
+                if (window.networkManager && window.networkManager.myRole === 'p1') {
+                    if (this.id === 'p1') {
+                        tagText = '▼ BẠN (1P)';
+                        tagColor = '#00f2fe';
+                        isUser = true;
+                    } else {
+                        tagText = 'ĐỐI THỦ (2P)';
+                        tagColor = '#ff4b2b';
+                    }
+                } else if (window.networkManager && window.networkManager.myRole === 'p2') {
+                    if (this.id === 'p2') {
+                        tagText = '▼ BẠN (2P)';
+                        tagColor = '#ffe600';
+                        isUser = true;
+                    } else {
+                        tagText = 'ĐỐI THỦ (1P)';
+                        tagColor = '#00f2fe';
+                    }
+                }
+            } else if (window.gameInstance.gameMode === 'PVE') {
+                if (this.id === 'p1') {
+                    tagText = '▼ BẠN';
+                    tagColor = '#00f2fe';
+                    isUser = true;
+                } else {
+                    tagText = 'CPU';
+                    tagColor = '#ff4b2b';
+                }
+            } else {
+                tagText = this.id === 'p1' ? '1P' : '2P';
+                tagColor = this.id === 'p1' ? '#00f2fe' : '#ff4b2b';
+            }
+
+            const tagY = this.y - this.height - 10;
+            ctx.shadowColor = isUser ? tagColor : 'rgba(0,0,0,0.8)';
+            ctx.shadowBlur = isUser ? 10 : 3;
+            ctx.fillStyle = tagColor;
+            ctx.fillText(tagText, Math.round(this.x), Math.round(tagY));
             ctx.restore();
         }
     }

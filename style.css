@@ -172,11 +172,43 @@ body {
 .fighter-name.p1 {
     color: var(--p1-color);
     text-shadow: 0 0 8px rgba(0, 242, 254, 0.6);
+    display: inline-flex;
+    align-items: center;
 }
 
 .fighter-name.p2 {
     color: var(--p2-color);
     text-shadow: 0 0 8px rgba(255, 51, 102, 0.6);
+    display: inline-flex;
+    align-items: center;
+}
+
+.you-badge {
+    background: #ffe600;
+    color: #111;
+    font-size: 10px;
+    font-weight: 900;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin: 0 4px;
+    box-shadow: 0 0 10px #ffe600;
+    animation: youBadgeGlow 1s infinite alternate;
+}
+
+@keyframes youBadgeGlow {
+    0% { transform: scale(0.96); opacity: 0.9; }
+    100% { transform: scale(1.04); opacity: 1; }
+}
+
+.foe-badge {
+    background: #23273e;
+    color: #a0aabf;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin: 0 4px;
+    border: 1px solid #4a5070;
 }
 
 .round-wins {
