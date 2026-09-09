@@ -51,12 +51,21 @@ class Fighter {
         this.attackTimer = 0; // Safety timeout to prevent stuck attack animations
     }
 
-    setCharacter(charType, palette = '1P') {
+    setCharacter(charType) {
         this.charType = charType;
-        this.name = charType === 'GIRL' ? 'BRAWLER GIRL' : 'ENEMY PUNK';
-        this.palette = palette;
-        this.speed = charType === 'GIRL' ? 4.8 : 4.2;
-        this.jumpForce = charType === 'GIRL' ? -14 : -13;
+        if (charType === 'GIRL') {
+            this.name = 'BRAWLER GIRL';
+            this.speed = 4.8;
+            this.jumpForce = -14;
+        } else if (charType === 'BMB_PUNK') {
+            this.name = 'BMB PUNK';
+            this.speed = 4.5;
+            this.jumpForce = -13.5;
+        } else {
+            this.name = 'ENEMY PUNK';
+            this.speed = 4.2;
+            this.jumpForce = -13;
+        }
         this.setAnimation('idle', 9, true);
     }
 
@@ -240,6 +249,10 @@ class Fighter {
             this.vx = this.facing * 10.0;
             this.isGrounded = false;
             this.setAnimation('dive_kick', 4, false);
+        } else if (this.charType === 'BMB_PUNK') {
+            // Nitro Rush Tackle (Lao bộc phá cực nhanh với xung lực lớn)
+            this.vx = this.facing * 14.0;
+            this.setAnimation('dash_tackle', 4, false);
         } else {
             // Super Dash Tackle (Lao húc cực mạnh)
             this.vx = this.facing * 12.0;
@@ -386,21 +399,21 @@ class Fighter {
         let hitStun = 14;
 
         if (this.state === 'ATTACK_1') {
-            damage = this.charType === 'GIRL' ? 3 : 4;
-            knockback = 3.5;
+            damage = this.charType === 'GIRL' ? 3 : (this.charType === 'BMB_PUNK' ? 4 : 4);
+            knockback = this.charType === 'BMB_PUNK' ? 3.8 : 3.5;
             hitStun = 12;
         } else if (this.state === 'ATTACK_2') {
-            damage = this.charType === 'GIRL' ? 6 : 7;
-            hitW = 75;
+            damage = this.charType === 'GIRL' ? 6 : (this.charType === 'BMB_PUNK' ? 8 : 7);
+            hitW = this.charType === 'BMB_PUNK' ? 78 : 75;
             hitH = 45;
-            knockback = 5.5;
+            knockback = this.charType === 'BMB_PUNK' ? 6.0 : 5.5;
             hitStun = 16;
         } else if (this.state === 'SPECIAL') {
-            damage = this.charType === 'GIRL' ? 10 : 12;
-            hitW = 85;
+            damage = this.charType === 'GIRL' ? 10 : (this.charType === 'BMB_PUNK' ? 14 : 12);
+            hitW = this.charType === 'BMB_PUNK' ? 90 : 85;
             hitH = 50;
-            knockback = 7.5;
-            hitStun = 22;
+            knockback = this.charType === 'BMB_PUNK' ? 8.5 : 7.5;
+            hitStun = 24;
         }
 
         return {
@@ -513,18 +526,13 @@ class Fighter {
             const spriteDir = this.charType === 'GIRL' ? this.facing : -this.facing;
             ctx.scale(spriteDir * this.scale, this.scale);
 
-            // Palette Swap (2P Alt Outfit for mirror match)
-            if (this.palette === '2P') {
-                ctx.filter = 'hue-rotate(180deg) saturate(1.3)';
-            }
-
             // Center sprite horizontally and bottom-align to ground
             const drawW = frameImg.width;
             const drawH = frameImg.height;
 
             // Optional: Super Special Aura Glow
             if (this.energy >= 100) {
-                ctx.shadowColor = this.charType === 'GIRL' ? '#00f2fe' : '#ff0844';
+                ctx.shadowColor = this.charType === 'GIRL' ? '#00f2fe' : (this.charType === 'BMB_PUNK' ? '#ff9900' : '#ff0844');
                 ctx.shadowBlur = 15;
             }
 

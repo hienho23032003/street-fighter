@@ -13,14 +13,17 @@ class SpriteManager {
         this.totalAssets++;
         return new Promise((resolve) => {
             const img = new Image();
-            img.src = this.basePath + relativePath;
+            const fullPath = (relativePath.startsWith('bmb-') || relativePath.startsWith('/') || relativePath.startsWith('http'))
+                ? relativePath
+                : this.basePath + relativePath;
+            img.src = fullPath;
             img.onload = () => {
                 this.images[key] = img;
                 this.loadedAssets++;
                 resolve(img);
             };
             img.onerror = () => {
-                console.warn(`Could not load image: ${relativePath}`);
+                console.warn(`Could not load image: ${relativePath} (path: ${fullPath})`);
                 this.loadedAssets++;
                 resolve(null);
             };
@@ -106,6 +109,28 @@ class SpriteManager {
             loadPromises.push(this.loadImage(`punk_hurt_${i}`, `Sprites/Enemy-Punk/Hurt/hurt${i}.png`));
         }
 
+        // 4. BMB Punk Frames (from bmb-Enemy-Punk)
+        // Idle (4)
+        for (let i = 1; i <= 4; i++) {
+            loadPromises.push(this.loadImage(`bmb_idle_${i}`, `bmb-Enemy-Punk/Idle/idle${i}.png`));
+        }
+        // Walk (4)
+        for (let i = 1; i <= 4; i++) {
+            loadPromises.push(this.loadImage(`bmb_walk_${i}`, `bmb-Enemy-Punk/Walk/walk${i}.png`));
+        }
+        // Punch (3)
+        for (let i = 1; i <= 3; i++) {
+            loadPromises.push(this.loadImage(`bmb_punch_${i}`, `bmb-Enemy-Punk/Punch/punch${i}.png`));
+        }
+        // Kick (4)
+        for (let i = 1; i <= 4; i++) {
+            loadPromises.push(this.loadImage(`bmb_kick_${i}`, `bmb-Enemy-Punk/Kick/kick${i}.png`));
+        }
+        // Hurt (4)
+        for (let i = 1; i <= 4; i++) {
+            loadPromises.push(this.loadImage(`bmb_hurt_${i}`, `bmb-Enemy-Punk/Hurt/hurt${i}.png`));
+        }
+
         // Monitor progress
         const checkInterval = setInterval(() => {
             const progress = this.totalAssets > 0 ? (this.loadedAssets / this.totalAssets) : 0;
@@ -124,7 +149,7 @@ class SpriteManager {
     }
 
     buildAnimationCache() {
-        const charTypes = ['GIRL', 'PUNK'];
+        const charTypes = ['GIRL', 'PUNK', 'BMB_PUNK'];
         const actions = ['idle', 'walk', 'jab', 'punch', 'kick', 'jump', 'jump_kick', 'dive_kick', 'hurt', 'block', 'heavy_punch', 'dash_tackle'];
 
         for (const charType of charTypes) {
@@ -138,7 +163,9 @@ class SpriteManager {
     // Generate array of images for an animation sequence
     _generateFrames(charType, actionName) {
         const frames = [];
-        let prefix = charType === 'GIRL' ? 'girl_' : 'punk_';
+        let prefix = 'girl_';
+        if (charType === 'PUNK') prefix = 'punk_';
+        if (charType === 'BMB_PUNK') prefix = 'bmb_';
 
         const mapCounts = {
             'GIRL': {
@@ -164,6 +191,18 @@ class SpriteManager {
                 'jump_kick': 2,
                 'hurt': 4,
                 'block': 1
+            },
+            'BMB_PUNK': {
+                'idle': 4,
+                'walk': 4,
+                'punch': 3,
+                'kick': 4,
+                'heavy_punch': 3,
+                'dash_tackle': 3,
+                'jump': 2,
+                'jump_kick': 2,
+                'hurt': 4,
+                'block': 1
             }
         };
 
@@ -171,7 +210,7 @@ class SpriteManager {
 
         for (let i = 1; i <= count; i++) {
             let key = `${prefix}${actionName}_${i}`;
-            // Special mappings for punk actions that reuse or adapt frames
+            // Special mappings for punk and bmb_punk actions that reuse or adapt frames
             if (charType === 'PUNK') {
                 if (actionName === 'kick') key = `punk_kick_${i}`;
                 if (actionName === 'jump_kick') key = `punk_kick_${i === 1 ? 3 : 4}`;
@@ -179,6 +218,13 @@ class SpriteManager {
                 if (actionName === 'dash_tackle') key = `punk_punch_${i}`;
                 if (actionName === 'jump') key = `punk_walk_${i === 1 ? 2 : 4}`;
                 if (actionName === 'block') key = `punk_walk_3`;
+            } else if (charType === 'BMB_PUNK') {
+                if (actionName === 'kick') key = `bmb_kick_${i}`;
+                if (actionName === 'jump_kick') key = `bmb_kick_${i === 1 ? 3 : 4}`;
+                if (actionName === 'heavy_punch') key = `bmb_punch_${i}`;
+                if (actionName === 'dash_tackle') key = `bmb_punch_${i}`;
+                if (actionName === 'jump') key = `bmb_walk_${i === 1 ? 2 : 4}`;
+                if (actionName === 'block') key = `bmb_walk_3`;
             } else if (charType === 'GIRL' && actionName === 'block') {
                 key = `girl_jab_1`;
             }

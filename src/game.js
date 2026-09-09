@@ -239,9 +239,8 @@ class Game {
         this.p2ChosenChar = p2Char;
 
         // Configure fighters based on character selection
-        const isMirrorMatch = (p1Char === p2Char);
-        this.player1.setCharacter(p1Char, '1P');
-        this.player2.setCharacter(p2Char, isMirrorMatch ? '2P' : '1P');
+        this.player1.setCharacter(p1Char);
+        this.player2.setCharacter(p2Char);
 
         this.player2.isAI = (mode === 'PVE');
         if (mode === 'PVE') {
@@ -802,7 +801,8 @@ window.addEventListener('DOMContentLoaded', async () => {
         pendingDiff = diff;
         selectStep = 1;
         selectedCharP1 = 'GIRL';
-        selectedCharP2 = (mode === 'PVE') ? (Math.random() < 0.5 ? 'PUNK' : 'GIRL') : 'PUNK';
+        const pveRoster = ['GIRL', 'PUNK', 'BMB_PUNK'];
+        selectedCharP2 = (mode === 'PVE') ? pveRoster[Math.floor(Math.random() * pveRoster.length)] : 'PUNK';
 
         updateCharCardSelection(selectedCharP1);
         const subtitle = document.getElementById('charSelectSubtitle');
@@ -817,22 +817,39 @@ window.addEventListener('DOMContentLoaded', async () => {
     function updateCharCardSelection(charType) {
         const cardGirl = document.getElementById('cardGirl');
         const cardPunk = document.getElementById('cardPunk');
+        const cardBmb = document.getElementById('cardBmb');
         if (cardGirl) cardGirl.classList.toggle('selected', charType === 'GIRL');
         if (cardPunk) cardPunk.classList.toggle('selected', charType === 'PUNK');
+        if (cardBmb) cardBmb.classList.toggle('selected', charType === 'BMB_PUNK');
     }
 
     // Card Selection Click Events
-    document.getElementById('cardGirl').addEventListener('click', () => {
-        if (selectStep === 1) selectedCharP1 = 'GIRL';
-        else selectedCharP2 = 'GIRL';
-        updateCharCardSelection('GIRL');
-    });
+    const cardGirlEl = document.getElementById('cardGirl');
+    if (cardGirlEl) {
+        cardGirlEl.addEventListener('click', () => {
+            if (selectStep === 1) selectedCharP1 = 'GIRL';
+            else selectedCharP2 = 'GIRL';
+            updateCharCardSelection('GIRL');
+        });
+    }
 
-    document.getElementById('cardPunk').addEventListener('click', () => {
-        if (selectStep === 1) selectedCharP1 = 'PUNK';
-        else selectedCharP2 = 'PUNK';
-        updateCharCardSelection('PUNK');
-    });
+    const cardPunkEl = document.getElementById('cardPunk');
+    if (cardPunkEl) {
+        cardPunkEl.addEventListener('click', () => {
+            if (selectStep === 1) selectedCharP1 = 'PUNK';
+            else selectedCharP2 = 'PUNK';
+            updateCharCardSelection('PUNK');
+        });
+    }
+
+    const cardBmbEl = document.getElementById('cardBmb');
+    if (cardBmbEl) {
+        cardBmbEl.addEventListener('click', () => {
+            if (selectStep === 1) selectedCharP1 = 'BMB_PUNK';
+            else selectedCharP2 = 'BMB_PUNK';
+            updateCharCardSelection('BMB_PUNK');
+        });
+    }
 
     // Confirm Character Selection
     document.getElementById('btnConfirmChar').addEventListener('click', () => {
